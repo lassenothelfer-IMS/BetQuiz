@@ -1,0 +1,18 @@
+# Render Blueprint — deploy BetQuiz as a single long-running Node web service.
+# In the Render dashboard: New > Blueprint, point it at this repo, and it picks
+# this up. Render injects PORT and supports WebSockets out of the box; the app's
+# in-memory game state lives in this one process (no database needed).
+services:
+  - type: web
+    name: betquiz
+    runtime: node
+    plan: free
+    # --include=dev forces devDependencies (tailwind etc.) to install even if the
+    # environment sets NODE_ENV=production, so `next build` always has its tooling.
+    buildCommand: npm install --include=dev && npm run build
+    # `npm start` runs `cross-env NODE_ENV=production node server.js` (the custom
+    # server that hosts both Next.js and Socket.io).
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: "22"

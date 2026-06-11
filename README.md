@@ -31,6 +31,35 @@ npm start            # run the production server (NODE_ENV=production)
 > still on port 3000. Stop it (PowerShell):
 > `Get-NetTCPConnection -LocalPort 3000 -State Listen | %{ Stop-Process -Id $_.OwningProcess -Force }`
 
+## Deploying
+
+BetQuiz needs a **single long-running Node process** (the custom Socket.io server
+holds all game state in memory). This means **Vercel/Netlify won't work** — their
+serverless model doesn't run custom servers or keep persistent WebSocket state.
+Deploy to a host that runs a normal Node server instead.
+
+### Render (one click via the included blueprint)
+
+1. Push this repo to GitHub.
+2. In Render: **New → Blueprint**, select the repo. It reads [`render.yaml`](render.yaml):
+   - Build: `npm install --include=dev && npm run build`
+   - Start: `npm start`
+3. Deploy. Render injects `PORT`, supports WebSockets out of the box, and the
+   app serves on the assigned URL. (Free tier sleeps when idle — first load after
+   a nap takes ~30–50 s.)
+
+### Railway / Fly.io / any VPS
+
+Same idea — no blueprint needed:
+
+- **Build command:** `npm install --include=dev && npm run build`
+- **Start command:** `npm start`
+- Make sure the platform installs **devDependencies** for the build (Tailwind
+  lives there) — that's what `--include=dev` guarantees.
+
+The client connects with same-origin `io()`, so when the whole app is served from
+one host there's nothing else to configure.
+
 ## How to play
 
 1. **Host** creates a room and shares the code; **players** join by code + name.
