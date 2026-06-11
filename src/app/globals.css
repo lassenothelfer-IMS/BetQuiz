@@ -1,0 +1,276 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  /* Brand tokens — money green, jackpot gold, playful grape */
+  --color-felt: #0b1712;
+  --color-felt-deep: #060d0a;
+  --color-money: #10b981;
+  --color-money-bright: #34d399;
+  --color-gold: #f5c542;
+  --color-grape: #b794f6;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  font-family: var(--font-sans), system-ui, sans-serif;
+  color: #e7f0ec;
+  background-color: #060d0a;
+  /* Felt table: green glow up top, a grape glow in the corner, faint dot grid */
+  background-image:
+    radial-gradient(1200px 520px at 50% -12%, rgba(16, 185, 129, 0.20), transparent 70%),
+    radial-gradient(700px 380px at 108% -6%, rgba(183, 148, 246, 0.12), transparent 60%),
+    radial-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-repeat: no-repeat, no-repeat, repeat;
+  background-size: auto, auto, 24px 24px;
+  background-attachment: fixed;
+}
+
+/* ------------------------------------------------------------------ surfaces */
+.panel {
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(20, 32, 27, 0.92), rgba(10, 18, 14, 0.92));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(6px);
+}
+
+/* Torn betting-slip ticket (perforated top & bottom edges) */
+.slip {
+  position: relative;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #142019, #0c1813);
+  border: 1px solid rgba(245, 197, 66, 0.28);
+  box-shadow: 0 14px 44px rgba(0, 0, 0, 0.5);
+}
+.slip::before,
+.slip::after {
+  content: "";
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  height: 12px;
+  background-image: radial-gradient(circle, #060d0a 5px, transparent 5.5px);
+  background-size: 18px 12px;
+  background-position: center;
+}
+.slip::before { top: -6px; }
+.slip::after { bottom: -6px; }
+
+/* ------------------------------------------------------------------ buttons */
+.btn-bet {
+  border-radius: 14px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  color: #042014;
+  background: linear-gradient(180deg, var(--color-money-bright), var(--color-money));
+  box-shadow: 0 6px 0 #0b5f43, 0 10px 24px rgba(16, 185, 129, 0.35);
+  transition: transform 0.1s, box-shadow 0.1s, filter 0.1s;
+}
+.btn-bet:hover { filter: brightness(1.06); }
+.btn-bet:active { transform: translateY(4px); box-shadow: 0 2px 0 #0b5f43, 0 4px 12px rgba(16, 185, 129, 0.3); }
+.btn-bet:disabled { opacity: 0.45; box-shadow: none; transform: none; cursor: not-allowed; filter: none; }
+
+.btn-gold {
+  border-radius: 14px;
+  font-weight: 800;
+  color: #2a1d00;
+  background: linear-gradient(180deg, #ffd766, var(--color-gold));
+  box-shadow: 0 6px 0 #9a7611, 0 10px 24px rgba(245, 197, 66, 0.3);
+  transition: transform 0.1s, box-shadow 0.1s, filter 0.1s;
+}
+.btn-gold:hover { filter: brightness(1.05); }
+.btn-gold:active { transform: translateY(4px); box-shadow: 0 2px 0 #9a7611; }
+
+.btn-ghost {
+  border-radius: 14px;
+  font-weight: 700;
+  color: #cfe8df;
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  transition: background 0.12s, border-color 0.12s, transform 0.1s;
+}
+.btn-ghost:hover { background: rgba(255, 255, 255, 0.09); border-color: rgba(16, 185, 129, 0.5); }
+.btn-ghost:active { transform: translateY(2px); }
+
+/* ------------------------------------------------------------------ inputs */
+.field {
+  border-radius: 12px;
+  background: rgba(6, 13, 10, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #e7f0ec;
+  outline: none;
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+.field:focus {
+  border-color: var(--color-money);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.18);
+}
+
+/* ------------------------------------------------------------------ chips */
+.chip {
+  position: relative;
+  display: grid;
+  place-items: center;
+  border-radius: 9999px;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: #e7f0ec;
+  background:
+    radial-gradient(circle at center, transparent 52%, rgba(255, 255, 255, 0.05) 53%),
+    repeating-conic-gradient(from 0deg, rgba(255, 255, 255, 0.14) 0deg 12deg, transparent 12deg 30deg);
+  background-color: #16241d;
+  border: 3px dashed rgba(255, 255, 255, 0.28);
+  box-shadow: inset 0 0 0 5px rgba(255, 255, 255, 0.04), 0 4px 0 rgba(0, 0, 0, 0.45);
+  transition: transform 0.12s, box-shadow 0.12s, border-color 0.12s, color 0.12s;
+}
+.chip:hover:not(:disabled) { transform: translateY(-3px); }
+.chip:active:not(:disabled) { transform: translateY(1px); }
+.chip[data-active="true"] {
+  color: var(--color-money-bright);
+  border-color: var(--color-money);
+  box-shadow: inset 0 0 0 5px rgba(16, 185, 129, 0.22), 0 0 26px rgba(16, 185, 129, 0.55);
+}
+.chip:disabled { opacity: 0.3; cursor: not-allowed; }
+
+/* Avatar coin (player initial) */
+.avatar {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9999px;
+  font-weight: 800;
+  font-size: 0.8rem;
+  color: #eafff6;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.45), rgba(183, 148, 246, 0.4));
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+/* ------------------------------------------------------------------ odds pill */
+.odds-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-family: var(--font-mono);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  border-radius: 10px;
+  padding: 0.2rem 0.55rem;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  color: var(--color-money-bright);
+  transition: transform 0.3s, color 0.3s, background 0.3s, border-color 0.3s;
+}
+.odds-pill[data-dir="up"] { color: #d1fae5; background: rgba(16, 185, 129, 0.28); transform: scale(1.12); }
+.odds-pill[data-dir="down"] { color: #fde68a; background: rgba(245, 197, 66, 0.18); border-color: rgba(245, 197, 66, 0.4); transform: scale(1.12); }
+.odds-pill[data-dim="true"] { color: #5b6b64; background: rgba(255, 255, 255, 0.03); border-color: rgba(255, 255, 255, 0.06); }
+
+/* ------------------------------------------------------------------ wordmark */
+.wordmark {
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  background: linear-gradient(90deg, var(--color-money-bright), var(--color-gold), var(--color-money-bright));
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer 7s linear infinite;
+}
+@keyframes shimmer { to { background-position: 200% 0; } }
+
+/* Live dot */
+.live-dot {
+  position: relative;
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: var(--color-money-bright);
+}
+.live-dot::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 9999px;
+  border: 2px solid rgba(52, 211, 153, 0.6);
+  animation: pulse-ring 1.6s ease-out infinite;
+}
+@keyframes pulse-ring {
+  0% { transform: scale(0.7); opacity: 0.9; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+
+/* ------------------------------------------------------------------ slot machine */
+.slot-cabinet {
+  border-radius: 22px;
+  background:
+    radial-gradient(120% 80% at 50% 0%, rgba(245, 197, 66, 0.12), transparent 60%),
+    linear-gradient(180deg, #1a1230, #100b1f);
+  border: 1px solid rgba(183, 148, 246, 0.35);
+  box-shadow: 0 0 0 1px rgba(245, 197, 66, 0.15) inset, 0 22px 60px rgba(0, 0, 0, 0.55);
+}
+.reel-window {
+  display: grid;
+  place-items: center;
+  height: 5.5rem;
+  width: 4.5rem;
+  border-radius: 12px;
+  font-size: 2.75rem;
+  line-height: 1;
+  background: linear-gradient(180deg, #fffef8, #e9e6f5);
+  box-shadow: inset 0 6px 10px rgba(0, 0, 0, 0.25), inset 0 -6px 10px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+}
+.reel-window.spinning { animation: reel-buzz 0.12s linear infinite; }
+@keyframes reel-buzz {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+}
+.reel-window.jackpot {
+  animation: reel-jackpot 0.5s ease-in-out infinite alternate;
+}
+@keyframes reel-jackpot {
+  from { box-shadow: inset 0 0 0 3px rgba(245, 197, 66, 0.5), 0 0 18px rgba(245, 197, 66, 0.6); }
+  to { box-shadow: inset 0 0 0 3px rgba(52, 211, 153, 0.6), 0 0 24px rgba(52, 211, 153, 0.7); }
+}
+
+/* ------------------------------------------------------------------ motion */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.fade-in { animation: fade-in 0.35s ease-out both; }
+
+@keyframes pop-in {
+  0% { transform: scale(0.6); opacity: 0; }
+  70% { transform: scale(1.08); }
+  100% { transform: scale(1); opacity: 1; }
+}
+.pop-in { animation: pop-in 0.45s cubic-bezier(0.2, 1.2, 0.4, 1) both; }
+
+@keyframes confetti-fall {
+  0% { transform: translate(0, -8px) rotate(0deg); opacity: 1; }
+  100% { transform: translate(var(--dx, 0), 220px) rotate(720deg); opacity: 0; }
+}
+.confetti-piece {
+  position: absolute;
+  top: 0;
+  width: 8px;
+  height: 13px;
+  border-radius: 2px;
+  animation: confetti-fall 1.5s ease-in forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fade-in,
+  .pop-in,
+  .wordmark,
+  .confetti-piece,
+  .live-dot::after { animation: none; }
+}
