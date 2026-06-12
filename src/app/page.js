@@ -2,10 +2,12 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getSocket } from '@/lib/socket';
+import { useSocketStatus } from '@/lib/useSocketStatus';
 import { rememberName } from '@/lib/session';
 
 export default function Home() {
   const router = useRouter();
+  const status = useSocketStatus();
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
@@ -16,7 +18,18 @@ export default function Home() {
     if (!trimmed) return setError('Enter your name to take a seat.');
     setError('');
     setBusy(true);
+
+    // Don't hang forever if the server can't be reached — give clear feedback.
+    let done = false;
+    const timer = setTimeout(() => {
+      if (done) return;
+      setBusy(false);
+      setError("Couldn't reach the game server. If it's on a free host it may be waking up — wait ~30s and try again.");
+    }, 10000);
+
     getSocket().emit('room:create', { name: trimmed }, (res) => {
+      done = true;
+      clearTimeout(timer);
       setBusy(false);
       if (res?.error) return setError(res.error);
       rememberName(trimmed);
@@ -47,6 +60,13 @@ export default function Home() {
           The quiz where the smart money bets against the crowd.
         </p>
       </header>
+
+      {status === 'offline' && (
+        <div className="w-full max-w-sm rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-center text-sm text-amber-200">
+          ⚠️ Can't reach the game server. On a free host it may be waking up — this
+          can take ~30–50s. Keep this tab open; it'll reconnect automatically.
+        </div>
+      )}
 
       <div className="fade-in panel w-full max-w-sm space-y-5 p-6">
         <label className="block">
