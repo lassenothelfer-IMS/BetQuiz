@@ -1,5 +1,5 @@
-// Betting smoke test: host + two players run a betting round end to end. Asserts
-// live odds movement, locked odds-at-bet, contrarian payout, scoring, re-betting.
+// Betting smoke test: lock-in (no re-bet), locked odds, contrarian scoring, and
+// auto-reveal once everyone has locked in.
 const { io } = require('socket.io-client');
 const URL = 'http://localhost:3000';
 const c = () => io(URL, { transports: ['websocket'] });
@@ -37,32 +37,31 @@ const check = (cond, msg) => {
   await ack(host, 'game:start');
   const start = await opened;
   check(JSON.stringify(start.odds) === JSON.stringify([3, 3, 3]), `baseline odds = 3,3,3 (${start.odds})`);
+  check(start.activeCount === 2, 'two active (non-host) players');
 
+  // Ann locks in answer 0 (correct) at baseline odds.
   const annBet = await ack(p1, 'bet:place', { answerId: 0, amount: 100 });
-  check(annBet.ok && annBet.oddsAtBet === 3, `Ann locks odds 3.00 betting first (${annBet.oddsAtBet})`);
+  check(annBet.ok && annBet.oddsAtBet === 3, `Ann locks odds 3.00 (${annBet.oddsAtBet})`);
 
-  const afterBob = waitFor(host, (r) => r.betCount === 2);
-  await ack(p2, 'bet:place', { answerId: 0, amount: 300 });
-  const liveRoom = await afterBob;
-  check(liveRoom.odds[0] < 3, `live odds on crowded answer dropped below 3 (${liveRoom.odds[0]})`);
+  // Ann can't change her bet.
+  const rebet = await ack(p1, 'bet:place', { answerId: 1, amount: 100 });
+  check(!!rebet.error, 'changing a locked bet is rejected: ' + rebet.error);
 
-  const rebet = await ack(p2, 'bet:place', { answerId: 1, amount: 200 });
-  check(rebet.ok, 're-betting allowed while open');
-
+  // Bob locks in answer 1 (wrong) -> both in -> auto-reveal.
   const revealed = waitFor(p1, (r) => r.status === 'reveal');
-  await ack(host, 'question:reveal');
+  await ack(p2, 'bet:place', { answerId: 1, amount: 300 });
   const rr = await revealed;
+  check(rr.status === 'reveal', 'betting auto-reveals once everyone has locked in');
   check(rr.correctAnswer === 0, 'correct answer revealed = 0');
 
   const ann = rr.players.find((p) => p.name === 'Ann');
   const bob = rr.players.find((p) => p.name === 'Bob');
-  check(ann.points === 1000 + 300, `Ann 1000 -> ${ann.points} (won +300)`);
-  check(bob.points === 1000 - 200, `Bob 1000 -> ${bob.points} (lost -200)`);
-
+  check(ann.points === 1300, `Ann 1000 -> ${ann.points} (won +300)`);
+  check(bob.points === 700, `Bob 1000 -> ${bob.points} (lost -300)`);
   const hostP = rr.players.find((p) => p.name === 'Quizmaster');
-  check(hostP.points === 1000, 'host stays at 1000 (moderates, no bet)');
+  check(hostP.points === 1000, 'host stays at 1000');
 
-  console.log(failed === 0 ? '\nPASS ✅ betting round' : `\nFAIL ❌ ${failed} check(s)`);
+  console.log(failed === 0 ? '\nPASS ✅ betting / lock-in' : `\nFAIL ❌ ${failed} check(s)`);
   [host, p1, p2].forEach((s) => s.close());
   process.exit(failed === 0 ? 0 : 1);
 })().catch((e) => {

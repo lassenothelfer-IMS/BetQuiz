@@ -61,9 +61,9 @@ export default function RoomPage() {
     setMyBet(null);
   }, [room?.round]);
 
-  // Tick the clock during the slot break so the host's countdown stays live.
+  // Tick the clock during timed phases so the host's countdowns stay live.
   useEffect(() => {
-    if (room?.status !== 'slots') return;
+    if (room?.status !== 'slots' && room?.status !== 'betting') return;
     const iv = setInterval(() => setNow(Date.now()), 250);
     return () => clearInterval(iv);
   }, [room?.status]);
@@ -126,6 +126,8 @@ export default function RoomPage() {
   const me = room.players.find((p) => p.id === myId);
   const myResult = room.results?.find((r) => r.playerId === myId) ?? null;
   const isLastQuestion = room.questionIndex === room.questionCount - 1;
+  const slotNext = !isLastQuestion && room.round % 3 === 0;
+  const bailedOut = room.bailouts?.includes(myId);
   const slotSeconds = room.slotDeadline ? Math.max(0, Math.ceil((room.slotDeadline - now) / 1000)) : 0;
 
   function placeBet(payload, ack) {
@@ -199,6 +201,7 @@ export default function RoomPage() {
               room={room}
               points={me?.points ?? 0}
               myBet={myBet}
+              bailedOut={bailedOut}
               onPlaceBet={placeBet}
             />
           ))}
@@ -209,6 +212,7 @@ export default function RoomPage() {
               room={room}
               isHost={isHost}
               isLastQuestion={isLastQuestion}
+              slotNext={slotNext}
               myResult={myResult}
               onNext={() => socket.emit('round:next')}
               onEnd={() => socket.emit('game:end')}
@@ -237,6 +241,8 @@ export default function RoomPage() {
               <SlotMachine
                 points={me?.points ?? 0}
                 deadline={room.slotDeadline}
+                spinsDone={room.spinsDone}
+                activeCount={room.activeCount}
                 onSpin={(wager, ack) => socket.emit('slot:spin', { wager }, ack)}
               />
             )}

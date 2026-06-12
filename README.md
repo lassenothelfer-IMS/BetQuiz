@@ -66,24 +66,32 @@ one host there's nothing else to configure.
 2. Host **builds the whole quiz up front** (Kahoot-style): pick ready-made
    questions from the pool and/or write custom ones, then start the game.
 3. For each question, players pick an answer and a stake (100 / 200 / 300 or a
-   custom amount). Odds are **locked at the moment you bet** and move live as
-   others join in.
-4. Host reveals the answer:
+   custom amount) and **lock it in — bets are final**. Odds are **locked at the
+   moment you bet** and move live as others join in. There's a **20-second timer**;
+   betting closes when everyone's locked in or the timer runs out.
+4. The answer is revealed (automatically, or the host can reveal early):
    - correct → `+ round(stake × oddsAtBet)`
    - wrong → `− stake`
-5. **Between every question there's a 20-second slot break** 🎰 — players get 3
-   spins on a slot machine, wagering points of their choice for a shot at a
-   jackpot (all just for fun — no real money).
-6. The live leaderboard updates after every question and slot break. After the
-   last question, the final standings are shown.
+5. **After every 3rd round there's a slot break** 🎰 — players get 3 spins on a
+   slot machine, wagering points for a shot at a jackpot. The break ends once
+   everyone's used their spins (with a timer as a fallback). All for fun — no
+   real money.
+6. **Bankruptcy bail-out:** any player who drops below 50 points gets **+50**
+   before the next round, so a bad bet never knocks you out of the game.
+7. The live leaderboard updates after every round and slot break. After the last
+   question, the final standings are shown.
 
 The **host moderates** — they build the quiz and drive the game but don't bet,
 don't spin, and aren't ranked.
 
 ### The slot machine
 
-Three reels, classic fruit-machine paytable (`server/slots.js`): three-of-a-kind
-pays 3×–20× (jackpot on 7️⃣7️⃣7️⃣), any pair pays 1.5×, no match loses the wager.
+A **3×3 grid with 5 paylines** (3 rows + 2 diagonals), `server/slots.js`:
+- Three-of-a-kind on a payline pays per its symbol (🍒 small → 7️⃣ jackpot); each
+  line pays independently, so one spin can hit several.
+- **🃏 WILD** substitutes to complete a line.
+- **💰 SCATTER** pays a bonus when 3+ land anywhere — triggering a bonus event.
+
 Outcomes are computed server-side, so no client can fake a win.
 
 ### Question pool
@@ -132,10 +140,11 @@ Plain Node scripts — no test framework. Start the dev server first for the smo
 tests (they connect over Socket.io); the logic test runs standalone.
 
 ```bash
-node scripts/test-logic.js   # pure odds + scoring (no server needed)
-node scripts/test-slots.js   # pure slot paytable (no server needed)
-node scripts/smoke.js        # create + join + live roster
-node scripts/smoke-m2.js     # quiz build + question flow + answer-hiding + host guards
-node scripts/smoke-m3.js     # betting, live odds, locked odds, scoring
-node scripts/smoke-slots.js  # slot break: spins, 3-spin cap, host skip/advance
+node scripts/test-logic.js    # pure odds + scoring (no server needed)
+node scripts/test-slots.js    # pure multi-line slot paytable (no server needed)
+node scripts/smoke.js         # create + join + live roster
+node scripts/smoke-m2.js      # quiz build + question flow + answer-hiding + host guards
+node scripts/smoke-m3.js      # betting: lock-in (no re-bet), locked odds, auto-reveal, scoring
+node scripts/smoke-bailout.js # bankruptcy +50 top-up before the next round
+node scripts/smoke-slots.js   # slots every 3rd round, end-on-all-spun
 ```

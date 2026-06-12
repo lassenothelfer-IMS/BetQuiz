@@ -20,42 +20,61 @@ const {
   serializeRoom,
   serializeQuiz,
 } = require('./state');
-const { SLOT_SECONDS } = require('./slots');
 
 function registerSocketHandlers(io) {
-  // Pending slot-break auto-advance timers, keyed by room code.
-  const slotTimers = new Map();
+  // One pending phase timer per room (betting auto-reveal OR slot auto-advance).
+  const phaseTimers = new Map();
 
   function broadcastRoom(code) {
     const room = getRoom(code);
     if (room) io.to(code).emit('room:update', serializeRoom(room));
   }
 
-  // The authored quiz (with correct answers) goes only to the host socket.
   function sendHostQuiz(room) {
     io.to(room.hostId).emit('quiz:questions', serializeQuiz(room));
   }
 
-  function clearSlotTimer(code) {
-    const t = slotTimers.get(code);
+  function clearTimer(code) {
+    const t = phaseTimers.get(code);
     if (t) {
       clearTimeout(t);
-      slotTimers.delete(code);
+      phaseTimers.delete(code);
     }
   }
 
-  function scheduleSlotEnd(code) {
-    clearSlotTimer(code);
-    const t = setTimeout(() => {
-      slotTimers.delete(code);
-      const res = advanceToNextQuestion(code);
-      if (res?.room) broadcastRoom(code);
-    }, SLOT_SECONDS * 1000);
-    slotTimers.set(code, t);
+  // Arm the timer that matches the room's current phase: betting auto-reveals at
+  // its deadline; a slot break auto-advances at its (fallback) deadline.
+  function armTimer(code) {
+    clearTimer(code);
+    const room = getRoom(code);
+    if (!room) return;
+    if (room.status === 'betting' && room.betDeadline) {
+      const ms = Math.max(0, room.betDeadline - Date.now());
+      phaseTimers.set(code, setTimeout(() => revealNow(code), ms));
+    } else if (room.status === 'slots' && room.slotDeadline) {
+      const ms = Math.max(0, room.slotDeadline - Date.now());
+      phaseTimers.set(code, setTimeout(() => advanceFromSlots(code), ms));
+    }
+  }
+
+  // Close betting and reveal the answer (timer fired, everyone locked in, or host).
+  function revealNow(code) {
+    clearTimer(code);
+    const res = revealAnswer(code);
+    if (res?.room) broadcastRoom(code);
+  }
+
+  // Leave the slot break for the next question (timer fired, everyone done, or host).
+  function advanceFromSlots(code) {
+    clearTimer(code);
+    const res = advanceToNextQuestion(code);
+    if (res?.room) {
+      broadcastRoom(code);
+      armTimer(code); // the next betting round gets its own 20s timer
+    }
   }
 
   io.on('connection', (socket) => {
-    // Look up the caller's room only if they are its host.
     function asHost(ack) {
       const room = getRoom(socket.data.code);
       if (!room || room.hostId !== socket.id) {
@@ -65,7 +84,6 @@ function registerSocketHandlers(io) {
       return room;
     }
 
-    // Host creates a room. Ack returns the generated code (or an error).
     socket.on('room:create', ({ name } = {}, ack) => {
       const trimmed = String(name || '').trim();
       if (!trimmed) return ack?.({ error: 'Name is required' });
@@ -76,7 +94,6 @@ function registerSocketHandlers(io) {
       ack?.({ code: room.code, room: serializeRoom(room) });
     });
 
-    // Join an existing room (also used by the host re-entering — joinRoom is idempotent).
     socket.on('room:join', ({ code, name } = {}, ack) => {
       const result = joinRoom(code, socket.id, name);
       if (result.error) return ack?.({ error: result.error });
@@ -85,7 +102,6 @@ function registerSocketHandlers(io) {
       socket.join(result.room.code);
       ack?.({ room: serializeRoom(result.room) });
       broadcastRoom(result.room.code);
-      // A host reconnecting mid-build needs their authored list back.
       if (result.room.status === 'build' && result.room.hostId === socket.id) {
         sendHostQuiz(result.room);
       }
@@ -107,8 +123,8 @@ function registerSocketHandlers(io) {
       const res = fn(room.code, payload);
       if (res.error) return ack?.({ error: res.error });
       ack?.({ ok: true });
-      broadcastRoom(room.code); // questionCount for the players' waiting screen
-      sendHostQuiz(room); // full list for the host
+      broadcastRoom(room.code);
+      sendHostQuiz(room);
     }
     socket.on('quiz:add', (payload, ack) => hostQuizMutation(addQuestion, payload, ack));
     socket.on('quiz:addPool', ({ id } = {}, ack) => hostQuizMutation(addPoolQuestion, id, ack));
@@ -120,21 +136,20 @@ function registerSocketHandlers(io) {
       if (!room) return;
       const res = startGame(room.code);
       if (res.error) return ack?.({ error: res.error });
-      clearSlotTimer(room.code);
       ack?.({ ok: true });
       broadcastRoom(room.code);
+      armTimer(room.code); // betting timer
     });
 
     socket.on('question:reveal', (_p, ack) => {
       const room = asHost(ack);
       if (!room) return;
-      const res = revealAnswer(room.code);
-      if (res.error) return ack?.({ error: res.error });
+      if (room.status !== 'betting') return ack?.({ error: 'Not in betting' });
       ack?.({ ok: true });
-      broadcastRoom(room.code);
+      revealNow(room.code);
     });
 
-    // Reveal -> slot break (or end). Starts the auto-advance timer when slots open.
+    // Reveal -> next question, possibly via a slot break (every 3rd round), or end.
     socket.on('round:next', (_p, ack) => {
       const room = asHost(ack);
       if (!room) return;
@@ -142,7 +157,7 @@ function registerSocketHandlers(io) {
       if (res.error) return ack?.({ error: res.error });
       ack?.({ ok: true });
       broadcastRoom(room.code);
-      if (res.phase === 'slots') scheduleSlotEnd(room.code);
+      armTimer(room.code); // arms a betting or slot timer depending on the new phase
     });
 
     // Host skips the remaining slot time.
@@ -150,53 +165,72 @@ function registerSocketHandlers(io) {
       const room = asHost(ack);
       if (!room) return;
       if (room.status !== 'slots') return ack?.({ error: 'Not in a slot break' });
-      clearSlotTimer(room.code);
-      advanceToNextQuestion(room.code);
       ack?.({ ok: true });
-      broadcastRoom(room.code);
+      advanceFromSlots(room.code);
     });
 
     socket.on('game:end', (_p, ack) => {
       const room = asHost(ack);
       if (!room) return;
-      clearSlotTimer(room.code);
+      clearTimer(room.code);
       endGame(room.code);
       ack?.({ ok: true });
       broadcastRoom(room.code);
     });
 
-    // Any player places/updates a bet during the betting phase. Broadcasting the
-    // room re-sends the freshly recomputed odds to everyone (live odds movement).
+    // A player locks in their bet. If that was the last player, reveal early.
     socket.on('bet:place', ({ answerId, amount } = {}, ack) => {
       const result = placeBet(socket.data.code, socket.id, answerId, amount);
       if (result.error) return ack?.({ error: result.error });
       ack?.({ ok: true, oddsAtBet: result.oddsAtBet });
-      broadcastRoom(socket.data.code);
+      if (result.allBet) {
+        revealNow(socket.data.code); // everyone locked in -> close betting now
+      } else {
+        broadcastRoom(socket.data.code);
+      }
     });
 
-    // A player spins the slot machine during the break.
+    // A player spins the slots. If everyone is now done, advance early.
     socket.on('slot:spin', ({ wager } = {}, ack) => {
       const res = spinSlot(socket.data.code, socket.id, wager);
       if (res.error) return ack?.({ error: res.error });
+      const o = res.outcome;
       ack?.({
         ok: true,
-        reels: res.outcome.reels,
-        mult: res.outcome.mult,
-        payout: res.outcome.payout,
-        delta: res.outcome.delta,
-        jackpot: res.outcome.jackpot,
+        grid: o.grid,
+        lines: o.lines,
+        scatterCount: o.scatterCount,
+        scatterBonus: o.scatterBonus,
+        payout: o.payout,
+        delta: o.delta,
+        event: o.event,
+        win: o.win,
         spinsLeft: res.spinsLeft,
         points: res.points,
       });
-      broadcastRoom(socket.data.code); // live leaderboard as winnings land
+      if (res.allDone) {
+        advanceFromSlots(socket.data.code); // everyone has spun -> continue
+      } else {
+        broadcastRoom(socket.data.code);
+      }
     });
 
     socket.on('disconnect', () => {
       const code = socket.data.code;
       if (!code) return;
       const { closed } = removePlayer(code, socket.id);
-      if (closed) clearSlotTimer(code);
-      else broadcastRoom(code);
+      if (closed) {
+        clearTimer(code);
+        return;
+      }
+      broadcastRoom(code);
+      // A player leaving might be the last one we were waiting on.
+      const room = getRoom(code);
+      if (room?.status === 'betting') {
+        // re-check: if the remaining players have all bet, reveal
+        const active = room.players.size - 1;
+        if (active > 0 && room.bets.length >= active) revealNow(code);
+      }
     });
   });
 }

@@ -4,11 +4,15 @@
 
 const { computeOdds } = require('./odds');
 const { scoreBets } = require('./scoring');
-const { computeSpin, SLOT_SECONDS, MAX_SPINS } = require('./slots');
+const { computeSpin, SLOT_SECONDS, MAX_SPINS, MIN_WAGER } = require('./slots');
 const { getPoolQuestion } = require('./questionPool');
 
 const STARTING_POINTS = 1000;
 const MAX_QUESTIONS = 20;
+const BET_SECONDS = 20; // betting window before it auto-reveals
+const BAILOUT_THRESHOLD = 50; // players below this get topped up before each round
+const BAILOUT_AMOUNT = 50;
+const SLOT_EVERY = 3; // a slot break happens after every Nth round
 
 /** @type {Map<string, Room>} keyed by uppercase room code */
 const rooms = new Map();
@@ -43,7 +47,9 @@ function createRoom(hostId, hostName) {
     questionIndex: -1, // index into questions of the active round
     round: 0,
     currentQuestion: null, // mirrors questions[questionIndex] while a round is live
-    bets: [], // { playerId, answerId, amount, oddsAtBet } — one per player per question
+    bets: [], // { playerId, answerId, amount, oddsAtBet } — one locked bet per player
+    betDeadline: null, // ms timestamp the betting window auto-reveals
+    lastBailouts: [], // playerIds topped up at the start of the current round
     lastResults: null, // scored outcome of the most recent reveal
     slotSpins: new Map(), // playerId -> spins used this slot break
     slotDeadline: null, // ms timestamp the slot break ends
@@ -150,13 +156,42 @@ function removeQuestion(code, index) {
   return { room };
 }
 
+// Players (not the host) competing in the game.
+function activePlayers(room) {
+  return [...room.players.values()].filter((p) => p.id !== room.hostId);
+}
+
+// Every active player has locked in a bet -> betting can close early.
+function everyoneBet(room) {
+  const players = activePlayers(room);
+  return players.length > 0 && players.every((p) => room.bets.some((b) => b.playerId === p.id));
+}
+
+// A player is "done" spinning if they've used all spins or can't afford the min.
+function everyoneSpun(room) {
+  const players = activePlayers(room);
+  return (
+    players.length > 0 &&
+    players.every((p) => (room.slotSpins.get(p.id) || 0) >= MAX_SPINS || p.points < MIN_WAGER)
+  );
+}
+
 // Load the question at room.questionIndex into the live round and open betting.
+// Anyone who's gone broke gets a small bail-out so they can keep playing.
 function openBetting(room) {
+  room.lastBailouts = [];
+  for (const p of activePlayers(room)) {
+    if (p.points < BAILOUT_THRESHOLD) {
+      p.points += BAILOUT_AMOUNT;
+      room.lastBailouts.push(p.id);
+    }
+  }
   room.currentQuestion = room.questions[room.questionIndex];
   room.round = room.questionIndex + 1;
   room.bets = [];
   room.lastResults = null;
   room.slotDeadline = null;
+  room.betDeadline = Date.now() + BET_SECONDS * 1000;
   room.status = 'betting';
 }
 
@@ -172,9 +207,9 @@ function startGame(code) {
   return { room };
 }
 
-// A player places (or changes) their bet while betting is open. The odds are
-// locked from the pool *as it stands before this stake moves it* — so betting
-// early against the crowd captures the high odds.
+// A player locks in their bet while betting is open. Bets are FINAL — once placed
+// they can't be changed. Odds are locked from the pool as it stands before this
+// stake moves it, so betting early against the crowd captures the high odds.
 function placeBet(code, playerId, answerId, amount) {
   const room = getRoom(code);
   if (!room) return { error: 'Room not found' };
@@ -183,6 +218,7 @@ function placeBet(code, playerId, answerId, amount) {
 
   const player = room.players.get(playerId);
   if (!player) return { error: 'You are not in this room' };
+  if (room.bets.some((b) => b.playerId === playerId)) return { error: 'Your bet is already locked in' };
 
   const aId = Number(answerId);
   const amt = Number(amount);
@@ -191,13 +227,11 @@ function placeBet(code, playerId, answerId, amount) {
   if (!Number.isFinite(amt) || amt <= 0) return { error: 'Choose a stake' };
   if (amt > player.points) return { error: 'Not enough points for that stake' };
 
-  // Drop any previous bet so a player can change their mind while betting is open.
-  room.bets = room.bets.filter((b) => b.playerId !== playerId);
   const oddsBefore = computeOdds(answerCount, room.bets);
   const oddsAtBet = oddsBefore[aId];
   room.bets.push({ playerId, answerId: aId, amount: amt, oddsAtBet });
 
-  return { room, oddsAtBet };
+  return { room, oddsAtBet, allBet: everyoneBet(room) };
 }
 
 // Host reveals the correct answer -> score every bet and apply the point deltas.
@@ -212,13 +246,23 @@ function revealAnswer(code) {
     if (p) p.points += r.delta;
   }
   room.lastResults = results;
+  room.betDeadline = null;
   room.status = 'reveal';
   return { room };
 }
 
-// After a reveal the host advances. If more questions remain we open a slot
-// break (20s); otherwise the game ends. Returns { room, phase } so the socket
-// layer knows whether to start the slot timer.
+function enterSlots(room) {
+  room.currentQuestion = null;
+  room.bets = [];
+  room.lastResults = null;
+  room.slotSpins = new Map();
+  room.slotDeadline = Date.now() + SLOT_SECONDS * 1000;
+  room.status = 'slots';
+}
+
+// After a reveal the host advances. A slot break only happens after every Nth
+// round (not every round); other rounds go straight to the next question; the
+// last question ends the game. Returns { room, phase } for the socket timer layer.
 function nextRound(code) {
   const room = getRoom(code);
   if (!room) return { error: 'Room not found' };
@@ -231,14 +275,15 @@ function nextRound(code) {
     return { room, phase: 'ended' };
   }
 
-  // Slot break between questions.
-  room.currentQuestion = null;
-  room.bets = [];
-  room.lastResults = null;
-  room.slotSpins = new Map();
-  room.slotDeadline = Date.now() + SLOT_SECONDS * 1000;
-  room.status = 'slots';
-  return { room, phase: 'slots' };
+  if (room.round % SLOT_EVERY === 0) {
+    enterSlots(room);
+    return { room, phase: 'slots' };
+  }
+
+  // No slot break this round — straight to the next question.
+  room.questionIndex += 1;
+  openBetting(room);
+  return { room, phase: 'betting' };
 }
 
 // Move from the slot break to the next question's betting (called by the slot
@@ -276,7 +321,13 @@ function spinSlot(code, playerId, wager) {
   const outcome = computeSpin(amt);
   player.points += outcome.delta;
   room.slotSpins.set(playerId, used + 1);
-  return { room, outcome, spinsLeft: MAX_SPINS - (used + 1), points: player.points };
+  return {
+    room,
+    outcome,
+    spinsLeft: MAX_SPINS - (used + 1),
+    points: player.points,
+    allDone: everyoneSpun(room),
+  };
 }
 
 // Host ends the game early -> final standings.
@@ -296,6 +347,7 @@ function endGame(code) {
 function serializeRoom(room) {
   const q = room.currentQuestion;
   const revealed = room.status === 'reveal';
+  const activeCount = [...room.players.values()].filter((p) => p.id !== room.hostId).length;
   return {
     code: room.code,
     hostId: room.hostId,
@@ -304,12 +356,16 @@ function serializeRoom(room) {
     questionCount: room.questions.length,
     questionIndex: room.questionIndex,
     players: [...room.players.values()],
+    activeCount, // non-host players (how many bets/spins to expect)
     question: q ? { text: q.text, answers: q.answers } : null,
     odds: q ? computeOdds(q.answers.length, room.bets) : null,
     betCount: room.bets.length,
+    betDeadline: room.status === 'betting' ? room.betDeadline : null,
+    bailouts: room.status === 'betting' ? room.lastBailouts : [],
     correctAnswer: revealed && q ? q.correctAnswer : null,
     results: revealed ? room.lastResults : null,
     slotDeadline: room.status === 'slots' ? room.slotDeadline : null,
+    spinsDone: room.status === 'slots' ? [...room.slotSpins.values()].filter((n) => n >= MAX_SPINS).length : 0,
   };
 }
 
