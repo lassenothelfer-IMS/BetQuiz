@@ -1,11 +1,10 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 
-// A sportsbook-style odds pill that briefly flashes and shows a ▲/▼ arrow when
-// the multiplier moves, so players feel the pool shifting in real time.
-function OddsBadge({ value, dim }) {
+// Amber tote-board odds that tick and flash green/red when the pool moves.
+function OddsLed({ value, dim }) {
   const prev = useRef(value);
-  const [dir, setDir] = useState(null); // 'up' | 'down' | null
+  const [dir, setDir] = useState(null);
 
   useEffect(() => {
     const before = prev.current;
@@ -18,15 +17,15 @@ function OddsBadge({ value, dim }) {
   }, [value]);
 
   return (
-    <span className="odds-pill" data-dir={dir ?? undefined} data-dim={dim || undefined}>
+    <span className="odds-led" data-dir={dir ?? undefined} data-dim={dim || undefined}>
       {dir === 'up' && '▲'}
       {dir === 'down' && '▼'}
-      {value.toFixed(2)}×
+      {value.toFixed(2)}
     </span>
   );
 }
 
-// The board of answers with their live odds. Reused by the player's betting panel
+// The board of runners (answers) with live odds. Reused by the betting panel
 // (selectable) and the host/reveal views (read-only).
 export default function OddsBoard({
   answers,
@@ -37,45 +36,38 @@ export default function OddsBoard({
   correctAnswer = null,
 }) {
   return (
-    <ul className="space-y-2.5">
+    <div className="space-y-2">
       {answers.map((a, i) => {
         const isCorrect = revealed && i === correctAnswer;
         const isWrong = revealed && i !== correctAnswer;
         const isSelected = selected === i;
 
-        let tone = 'border-white/8 bg-black/30 text-zinc-200';
-        if (isCorrect) tone = 'border-emerald-400/70 bg-emerald-500/15 text-emerald-200 shadow-[0_0_28px_rgba(16,185,129,0.35)]';
-        else if (isWrong) tone = 'border-white/5 bg-black/20 text-zinc-500';
-        else if (isSelected) tone = 'border-emerald-500 bg-emerald-500/10 text-zinc-50 shadow-[0_0_20px_rgba(16,185,129,0.3)]';
+        const state = isCorrect
+          ? 'correct'
+          : isWrong
+            ? 'wrong'
+            : isSelected
+              ? 'selected'
+              : 'open';
 
         const Tag = onSelect ? 'button' : 'div';
         return (
-          <li key={i}>
-            <Tag
-              {...(onSelect ? { type: 'button', onClick: () => onSelect(i) } : {})}
-              className={`flex w-full items-center justify-between gap-3 rounded-xl border px-4 py-3.5 text-left transition ${tone} ${
-                onSelect ? 'hover:border-emerald-500/60 hover:bg-emerald-500/5' : ''
-              }`}
-            >
-              <span className="flex items-center gap-2.5">
-                <span
-                  className={`grid h-6 w-6 shrink-0 place-items-center rounded-md border text-xs font-bold ${
-                    isCorrect
-                      ? 'border-emerald-400 bg-emerald-400 text-emerald-950'
-                      : isSelected
-                        ? 'border-emerald-500 text-emerald-300'
-                        : 'border-white/15 text-zinc-500'
-                  }`}
-                >
-                  {isCorrect ? '✓' : String.fromCharCode(65 + i)}
-                </span>
-                <span className="font-medium">{a}</span>
-              </span>
-              {odds && <OddsBadge value={odds[i]} dim={isWrong} />}
-            </Tag>
-          </li>
+          <Tag
+            key={i}
+            {...(onSelect ? { type: 'button', onClick: () => onSelect(i) } : {})}
+            data-state={state}
+            className={`pick-row w-full text-left ${onSelect ? 'selectable' : ''}`}
+          >
+            <span className="pick-key">{isCorrect ? '✓' : String.fromCharCode(65 + i)}</span>
+            <span className="flex flex-1 items-center px-3 py-3 font-semibold uppercase tracking-wide">
+              {a}
+            </span>
+            <span className="flex items-center pr-2">
+              {odds && <OddsLed value={odds[i]} dim={isWrong} />}
+            </span>
+          </Tag>
         );
       })}
-    </ul>
+    </div>
   );
 }

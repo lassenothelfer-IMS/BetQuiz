@@ -1,15 +1,30 @@
 @import "tailwindcss";
 
+/* ============================================================ THE BIG BOARD
+   A live trackside betting broadcast. Ink-black canvas, amber tote board,
+   green/red reserved strictly for up/down. Hard-edged "board modules" with
+   label tabs — no glass, no rounded SaaS cards. Condensed display type + mono
+   numbers. Scanlines, a crawling ticker, slam buttons, paper bet stubs.
+   ========================================================================= */
+
 @theme inline {
+  --font-display: var(--font-anton);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-  /* Brand tokens — money green, jackpot gold, playful grape */
-  --color-felt: #0b1712;
-  --color-felt-deep: #060d0a;
-  --color-money: #10b981;
-  --color-money-bright: #34d399;
-  --color-gold: #f5c542;
-  --color-grape: #b794f6;
+
+  --color-ink: #08080a;
+  --color-panel: #101015;
+  --color-panel-2: #16161c;
+  --color-steel: #2b2b33;
+  --color-steel-bright: #3d3d47;
+  --color-board: #ffb000; /* amber tote board — the brand */
+  --color-board-bright: #ffc94d;
+  --color-up: #2ee06a; /* gains only */
+  --color-down: #ff3b3b; /* losses / danger only */
+  --color-paper: #f1e9d2; /* bet stub */
+  --color-stamp: #cf3a22;
+  --color-chalk: #f5f5f3;
+  --color-ash: #8a8a93;
 }
 
 :root {
@@ -18,292 +33,359 @@
 
 body {
   font-family: var(--font-sans), system-ui, sans-serif;
-  color: #e7f0ec;
-  background-color: #060d0a;
-  /* Felt table: green glow up top, a grape glow in the corner, faint dot grid */
+  color: var(--color-chalk);
+  background-color: var(--color-ink);
+  /* stage light from the top, darkened gutters */
   background-image:
-    radial-gradient(1200px 520px at 50% -12%, rgba(16, 185, 129, 0.20), transparent 70%),
-    radial-gradient(700px 380px at 108% -6%, rgba(183, 148, 246, 0.12), transparent 60%),
-    radial-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px);
-  background-repeat: no-repeat, no-repeat, repeat;
-  background-size: auto, auto, 24px 24px;
+    radial-gradient(125% 90% at 50% -15%, rgba(255, 176, 0, 0.07), transparent 55%),
+    radial-gradient(100% 70% at 50% 120%, rgba(0, 0, 0, 0.7), transparent 70%);
   background-attachment: fixed;
 }
 
-/* ------------------------------------------------------------------ surfaces */
-.panel {
-  border-radius: 20px;
-  background: linear-gradient(180deg, rgba(20, 32, 27, 0.92), rgba(10, 18, 14, 0.92));
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(6px);
-}
-
-/* Torn betting-slip ticket (perforated top & bottom edges) */
-.slip {
-  position: relative;
-  border-radius: 16px;
-  background: linear-gradient(180deg, #142019, #0c1813);
-  border: 1px solid rgba(245, 197, 66, 0.28);
-  box-shadow: 0 14px 44px rgba(0, 0, 0, 0.5);
-}
-.slip::before,
-.slip::after {
+/* Broadcast scanlines over everything (subtle, non-interactive) */
+body::after {
   content: "";
-  position: absolute;
-  left: 6px;
-  right: 6px;
-  height: 12px;
-  background-image: radial-gradient(circle, #060d0a 5px, transparent 5.5px);
-  background-size: 18px 12px;
-  background-position: center;
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(255, 255, 255, 0.035) 0,
+    rgba(255, 255, 255, 0.035) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  opacity: 0.6;
 }
-.slip::before { top: -6px; }
-.slip::after { bottom: -6px; }
 
-/* ------------------------------------------------------------------ buttons */
-.btn-bet {
-  border-radius: 14px;
-  font-weight: 800;
-  letter-spacing: 0.01em;
-  color: #042014;
-  background: linear-gradient(180deg, var(--color-money-bright), var(--color-money));
-  box-shadow: 0 6px 0 #0b5f43, 0 10px 24px rgba(16, 185, 129, 0.35);
-  transition: transform 0.1s, box-shadow 0.1s, filter 0.1s;
+/* ---------------------------------------------------------------- masthead */
+.masthead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.55rem 1rem;
+  background: #000;
+  border-bottom: 3px solid var(--color-board);
 }
-.btn-bet:hover { filter: brightness(1.06); }
-.btn-bet:active { transform: translateY(4px); box-shadow: 0 2px 0 #0b5f43, 0 4px 12px rgba(16, 185, 129, 0.3); }
-.btn-bet:disabled { opacity: 0.45; box-shadow: none; transform: none; cursor: not-allowed; filter: none; }
-
-.btn-gold {
-  border-radius: 14px;
-  font-weight: 800;
-  color: #2a1d00;
-  background: linear-gradient(180deg, #ffd766, var(--color-gold));
-  box-shadow: 0 6px 0 #9a7611, 0 10px 24px rgba(245, 197, 66, 0.3);
-  transition: transform 0.1s, box-shadow 0.1s, filter 0.1s;
+.wordmark {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  color: var(--color-chalk);
+  text-transform: uppercase;
 }
-.btn-gold:hover { filter: brightness(1.05); }
-.btn-gold:active { transform: translateY(4px); box-shadow: 0 2px 0 #9a7611; }
+.wordmark b {
+  color: var(--color-board);
+  font-weight: inherit;
+}
 
-.btn-ghost {
-  border-radius: 14px;
+/* LIVE bug */
+.live-bug {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--font-display);
+  letter-spacing: 0.12em;
+  font-size: 0.95rem;
+  color: var(--color-chalk);
+  text-transform: uppercase;
+}
+.live-bug .dot {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 9999px;
+  background: var(--color-down);
+  box-shadow: 0 0 10px var(--color-down);
+  animation: blink 1.1s steps(1, end) infinite;
+}
+@keyframes blink {
+  50% { opacity: 0.2; }
+}
+
+/* ------------------------------------------------------------ board module */
+.board {
+  position: relative;
+  background: var(--color-panel);
+  border: 2px solid var(--color-steel);
+}
+.board-hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.4rem 0.8rem;
+  background: var(--color-panel-2);
+  border-bottom: 2px solid var(--color-steel);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
   font-weight: 700;
-  color: #cfe8df;
-  background: rgba(255, 255, 255, 0.045);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  transition: background 0.12s, border-color 0.12s, transform 0.1s;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-board);
 }
-.btn-ghost:hover { background: rgba(255, 255, 255, 0.09); border-color: rgba(16, 185, 129, 0.5); }
-.btn-ghost:active { transform: translateY(2px); }
 
-/* ------------------------------------------------------------------ inputs */
-.field {
-  border-radius: 12px;
-  background: rgba(6, 13, 10, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: #e7f0ec;
+/* Display headline (lower-third style) */
+.headline {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+  line-height: 0.98;
+  color: var(--color-chalk);
+}
+
+/* ---------------------------------------------------------------- numbers */
+.led {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--color-board);
+  text-shadow: 0 0 8px rgba(255, 176, 0, 0.45);
+}
+.led.up { color: var(--color-up); text-shadow: 0 0 10px rgba(46, 224, 106, 0.55); }
+.led.down { color: var(--color-down); text-shadow: 0 0 10px rgba(255, 59, 59, 0.55); }
+
+/* an odds tote display that flashes on movement */
+.odds-led {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 4.2rem;
+  justify-content: center;
+  padding: 0.25rem 0.5rem;
+  background: #050507;
+  border: 2px solid var(--color-steel);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--color-board);
+  text-shadow: 0 0 8px rgba(255, 176, 0, 0.5);
+  transition: color 0.25s, border-color 0.25s, background 0.25s, transform 0.2s;
+}
+.odds-led[data-dir="up"] { color: var(--color-up); border-color: var(--color-up); transform: translateY(-1px); }
+.odds-led[data-dir="down"] { color: var(--color-down); border-color: var(--color-down); transform: translateY(1px); }
+.odds-led[data-dim="true"] { color: #4f4f57; text-shadow: none; }
+
+/* score-bug scoreboard box */
+.score-box {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  padding: 0.1rem 0.55rem;
+  background: #050507;
+  border: 2px solid var(--color-steel);
+}
+
+/* ---------------------------------------------------------------- buttons */
+.btn-slam {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #160d00;
+  background: var(--color-board);
+  border: 2px solid #000;
+  box-shadow: 0 5px 0 #7c5500, 0 7px 16px rgba(0, 0, 0, 0.5);
+  transition: transform 0.08s, box-shadow 0.08s, filter 0.08s;
+}
+.btn-slam:hover:not(:disabled) { filter: brightness(1.08); }
+.btn-slam:active:not(:disabled) { transform: translateY(5px); box-shadow: 0 0 0 #7c5500, 0 2px 6px rgba(0, 0, 0, 0.5); }
+.btn-slam:disabled { opacity: 0.4; box-shadow: none; cursor: not-allowed; }
+
+.btn-slam.ghost { background: transparent; color: var(--color-board); border-color: var(--color-steel-bright); box-shadow: 0 5px 0 #1b1b21; }
+.btn-slam.ghost:hover:not(:disabled) { border-color: var(--color-board); filter: none; }
+.btn-slam.danger { background: var(--color-down); color: #fff; box-shadow: 0 5px 0 #7c1414; }
+.btn-slam.up { background: var(--color-up); color: #062612; box-shadow: 0 5px 0 #146336; }
+
+/* small chip-style toggle (stakes) — square, not poker chips */
+.stake {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-chalk);
+  background: #050507;
+  border: 2px solid var(--color-steel);
+  transition: border-color 0.1s, color 0.1s, background 0.1s, transform 0.08s;
+}
+.stake:hover:not(:disabled) { border-color: var(--color-board); }
+.stake[data-active="true"] { background: var(--color-board); border-color: #000; color: #160d00; }
+.stake:disabled { opacity: 0.3; cursor: not-allowed; }
+
+/* ---------------------------------------------------------------- inputs */
+.input-board {
+  background: #050507;
+  border: 2px solid var(--color-steel);
+  color: var(--color-chalk);
+  font-family: var(--font-mono);
   outline: none;
   transition: border-color 0.12s, box-shadow 0.12s;
 }
-.field:focus {
-  border-color: var(--color-money);
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.18);
-}
+.input-board::placeholder { color: #55555d; }
+.input-board:focus { border-color: var(--color-board); box-shadow: inset 0 0 0 1px var(--color-board); }
 
-/* ------------------------------------------------------------------ chips */
-.chip {
-  position: relative;
+/* ----------------------------------------------------------- tote-board rows */
+.pick-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  background: #0c0c11;
+  border: 2px solid var(--color-steel);
+  transition: border-color 0.12s, background 0.12s;
+}
+.pick-row.selectable { cursor: pointer; }
+.pick-row.selectable:hover { border-color: var(--color-board); }
+.pick-row[data-state="selected"] { border-color: var(--color-board); background: rgba(255, 176, 0, 0.08); }
+.pick-row[data-state="correct"] { border-color: var(--color-up); background: rgba(46, 224, 106, 0.1); }
+.pick-row[data-state="wrong"] { opacity: 0.45; }
+.pick-key {
   display: grid;
   place-items: center;
-  border-radius: 9999px;
-  font-weight: 800;
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  color: #e7f0ec;
-  background:
-    radial-gradient(circle at center, transparent 52%, rgba(255, 255, 255, 0.05) 53%),
-    repeating-conic-gradient(from 0deg, rgba(255, 255, 255, 0.14) 0deg 12deg, transparent 12deg 30deg);
-  background-color: #16241d;
-  border: 3px dashed rgba(255, 255, 255, 0.28);
-  box-shadow: inset 0 0 0 5px rgba(255, 255, 255, 0.04), 0 4px 0 rgba(0, 0, 0, 0.45);
-  transition: transform 0.12s, box-shadow 0.12s, border-color 0.12s, color 0.12s;
+  width: 2.6rem;
+  flex-shrink: 0;
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  color: var(--color-ink);
+  background: var(--color-ash);
 }
-.chip:hover:not(:disabled) { transform: translateY(-3px); }
-.chip:active:not(:disabled) { transform: translateY(1px); }
-.chip[data-active="true"] {
-  color: var(--color-money-bright);
-  border-color: var(--color-money);
-  box-shadow: inset 0 0 0 5px rgba(16, 185, 129, 0.22), 0 0 26px rgba(16, 185, 129, 0.55);
-}
-.chip:disabled { opacity: 0.3; cursor: not-allowed; }
+.pick-row[data-state="selected"] .pick-key { background: var(--color-board); }
+.pick-row[data-state="correct"] .pick-key { background: var(--color-up); }
 
-/* Avatar coin (player initial) */
-.avatar {
+/* ----------------------------------------------------------- standings rows */
+.rank-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.45rem 0.7rem;
+  background: #0c0c11;
+  border-left: 4px solid transparent;
+  border-bottom: 1px solid var(--color-steel);
+}
+.rank-row.lead {
+  border-left-color: var(--color-board);
+  background: linear-gradient(90deg, rgba(255, 176, 0, 0.14), transparent 60%);
+}
+.rank-num {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  width: 1.6rem;
+  text-align: center;
+  color: var(--color-ash);
+}
+.rank-row.lead .rank-num { color: var(--color-board); }
+
+/* avatar tile (square, jersey-like) */
+.tile {
   display: grid;
   place-items: center;
   width: 2rem;
   height: 2rem;
-  border-radius: 9999px;
-  font-weight: 800;
-  font-size: 0.8rem;
-  color: #eafff6;
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.45), rgba(183, 148, 246, 0.4));
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  flex-shrink: 0;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  color: var(--color-ink);
+  background: var(--color-board);
 }
 
-/* ------------------------------------------------------------------ odds pill */
-.odds-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  font-family: var(--font-mono);
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  border-radius: 10px;
-  padding: 0.2rem 0.55rem;
-  background: rgba(16, 185, 129, 0.12);
-  border: 1px solid rgba(16, 185, 129, 0.35);
-  color: var(--color-money-bright);
-  transition: transform 0.3s, color 0.3s, background 0.3s, border-color 0.3s;
-}
-.odds-pill[data-dir="up"] { color: #d1fae5; background: rgba(16, 185, 129, 0.28); transform: scale(1.12); }
-.odds-pill[data-dir="down"] { color: #fde68a; background: rgba(245, 197, 66, 0.18); border-color: rgba(245, 197, 66, 0.4); transform: scale(1.12); }
-.odds-pill[data-dim="true"] { color: #5b6b64; background: rgba(255, 255, 255, 0.03); border-color: rgba(255, 255, 255, 0.06); }
-
-/* ------------------------------------------------------------------ wordmark */
-.wordmark {
-  font-weight: 900;
-  letter-spacing: -0.03em;
-  background: linear-gradient(90deg, var(--color-money-bright), var(--color-gold), var(--color-money-bright));
-  background-size: 200% 100%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  animation: shimmer 7s linear infinite;
-}
-@keyframes shimmer { to { background-position: 200% 0; } }
-
-/* Live dot */
-.live-dot {
-  position: relative;
-  display: inline-block;
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: 9999px;
-  background: var(--color-money-bright);
-}
-.live-dot::after {
-  content: "";
-  position: absolute;
-  inset: -4px;
-  border-radius: 9999px;
-  border: 2px solid rgba(52, 211, 153, 0.6);
-  animation: pulse-ring 1.6s ease-out infinite;
-}
-@keyframes pulse-ring {
-  0% { transform: scale(0.7); opacity: 0.9; }
-  100% { transform: scale(1.6); opacity: 0; }
-}
-
-/* ------------------------------------------------------------------ slot machine */
-.slot-cabinet {
-  border-radius: 22px;
-  background:
-    radial-gradient(120% 80% at 50% 0%, rgba(245, 197, 66, 0.12), transparent 60%),
-    linear-gradient(180deg, #1a1230, #100b1f);
-  border: 1px solid rgba(183, 148, 246, 0.35);
-  box-shadow: 0 0 0 1px rgba(245, 197, 66, 0.15) inset, 0 22px 60px rgba(0, 0, 0, 0.55);
-}
-.reel-window {
-  display: grid;
-  place-items: center;
-  height: 5.5rem;
-  width: 4.5rem;
-  border-radius: 12px;
-  font-size: 2.75rem;
-  line-height: 1;
-  background: linear-gradient(180deg, #fffef8, #e9e6f5);
-  box-shadow: inset 0 6px 10px rgba(0, 0, 0, 0.25), inset 0 -6px 10px rgba(0, 0, 0, 0.15);
+/* ---------------------------------------------------------------- ticker */
+.ticker {
   overflow: hidden;
+  white-space: nowrap;
+  background: #000;
+  border-top: 2px solid var(--color-steel);
+  border-bottom: 2px solid var(--color-steel);
 }
-.reel-window.spinning { animation: reel-buzz 0.12s linear infinite; }
-@keyframes reel-buzz {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-2px); }
+.ticker-track {
+  display: inline-flex;
+  white-space: nowrap;
+  animation: ticker 32s linear infinite;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.35rem 0;
 }
-.reel-window.jackpot {
-  animation: reel-jackpot 0.5s ease-in-out infinite alternate;
-}
-@keyframes reel-jackpot {
-  from { box-shadow: inset 0 0 0 3px rgba(245, 197, 66, 0.5), 0 0 18px rgba(245, 197, 66, 0.6); }
-  to { box-shadow: inset 0 0 0 3px rgba(52, 211, 153, 0.6), 0 0 24px rgba(52, 211, 153, 0.7); }
+.ticker:hover .ticker-track { animation-play-state: paused; }
+@keyframes ticker {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
 }
 
-/* 3x3 grid slot */
+/* ------------------------------------------------------------- paper stub */
+.stub {
+  position: relative;
+  background: var(--color-paper);
+  color: #1a1710;
+  font-family: var(--font-mono);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.55);
+}
+.stub-perf {
+  border-top: 2px dashed rgba(26, 23, 16, 0.35);
+}
+.stamp {
+  display: inline-block;
+  font-family: var(--font-display);
+  letter-spacing: 0.06em;
+  color: var(--color-stamp);
+  border: 3px solid var(--color-stamp);
+  padding: 0.05rem 0.5rem;
+  transform: rotate(-7deg);
+  text-transform: uppercase;
+  opacity: 0.92;
+}
+
+/* ---------------------------------------------------------------- slot grid */
 .slot-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 0.4rem;
   padding: 0.5rem;
-  border-radius: 14px;
-  background: linear-gradient(180deg, #0b0716, #140b24);
-  box-shadow: inset 0 0 22px rgba(0, 0, 0, 0.6);
+  background: #050507;
+  border: 2px solid var(--color-steel);
 }
-.slot-col {
-  display: grid;
-  grid-template-rows: repeat(3, 1fr);
-  gap: 0.4rem;
-}
+.slot-col { display: grid; grid-template-rows: repeat(3, 1fr); gap: 0.4rem; }
 .slot-cell {
   display: grid;
   place-items: center;
   aspect-ratio: 1;
-  border-radius: 10px;
   font-size: 2rem;
   line-height: 1;
-  background: linear-gradient(180deg, #fffef8, #e7e3f3);
-  box-shadow: inset 0 4px 8px rgba(0, 0, 0, 0.2), inset 0 -4px 8px rgba(0, 0, 0, 0.12);
-  transition: box-shadow 0.2s, transform 0.2s;
+  background: #15151b;
+  border: 2px solid #26262e;
 }
-.slot-col.spinning { animation: reel-buzz 0.12s linear infinite; }
+.slot-col.spinning { animation: buzz 0.1s linear infinite; }
+@keyframes buzz { 50% { transform: translateY(-2px); } }
 .slot-cell.win {
-  box-shadow: 0 0 0 3px var(--color-gold), 0 0 18px rgba(245, 197, 66, 0.7);
-  transform: scale(1.04);
-  z-index: 1;
+  border-color: var(--color-board);
+  background: rgba(255, 176, 0, 0.16);
+  box-shadow: 0 0 16px rgba(255, 176, 0, 0.5);
 }
 
-/* ------------------------------------------------------------------ motion */
-@keyframes fade-in {
+/* ---------------------------------------------------------------- motion */
+@keyframes slam {
+  0% { transform: scale(1.4) translateY(-8px); opacity: 0; }
+  60% { transform: scale(0.97); }
+  100% { transform: scale(1); opacity: 1; }
+}
+.slam { animation: slam 0.4s cubic-bezier(0.2, 1.3, 0.4, 1) both; }
+
+@keyframes fade-up {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
-.fade-in { animation: fade-in 0.35s ease-out both; }
-
-@keyframes pop-in {
-  0% { transform: scale(0.6); opacity: 0; }
-  70% { transform: scale(1.08); }
-  100% { transform: scale(1); opacity: 1; }
-}
-.pop-in { animation: pop-in 0.45s cubic-bezier(0.2, 1.2, 0.4, 1) both; }
+.fade-in { animation: fade-up 0.3s ease-out both; }
 
 @keyframes confetti-fall {
   0% { transform: translate(0, -8px) rotate(0deg); opacity: 1; }
   100% { transform: translate(var(--dx, 0), 220px) rotate(720deg); opacity: 0; }
 }
-.confetti-piece {
-  position: absolute;
-  top: 0;
-  width: 8px;
-  height: 13px;
-  border-radius: 2px;
-  animation: confetti-fall 1.5s ease-in forwards;
-}
+.confetti-piece { position: absolute; top: 0; width: 7px; height: 12px; animation: confetti-fall 1.5s ease-in forwards; }
 
 @media (prefers-reduced-motion: reduce) {
-  .fade-in,
-  .pop-in,
-  .wordmark,
-  .confetti-piece,
-  .live-dot::after { animation: none; }
+  .ticker-track, .live-bug .dot, .slam, .fade-in, .confetti-piece, .slot-col.spinning { animation: none; }
 }

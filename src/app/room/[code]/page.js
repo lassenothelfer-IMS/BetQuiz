@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { getSocket } from '@/lib/socket';
 import { recallName, rememberName } from '@/lib/session';
@@ -10,6 +10,8 @@ import BettingPanel from '@/components/BettingPanel';
 import SlotMachine from '@/components/SlotMachine';
 import Leaderboard from '@/components/Leaderboard';
 import Standings from '@/components/Standings';
+import Ticker from '@/components/Ticker';
+import RollingNumber from '@/components/RollingNumber';
 
 export default function RoomPage() {
   const router = useRouter();
@@ -61,6 +63,24 @@ export default function RoomPage() {
     setMyBet(null);
   }, [room?.round]);
 
+  // Live ticker crawl: leader, this round's swings, then the standings.
+  const tickerItems = useMemo(() => {
+    if (!room) return [];
+    const items = [];
+    const ranked = room.players
+      .filter((p) => p.id !== room.hostId)
+      .sort((a, b) => b.points - a.points);
+    if (ranked[0]) items.push(`◆ Leader: ${ranked[0].name} ${ranked[0].points.toLocaleString()}`);
+    if (room.results) {
+      for (const r of room.results) {
+        const pl = room.players.find((p) => p.id === r.playerId);
+        if (pl && r.delta !== 0) items.push(`${pl.name} ${r.delta > 0 ? `▲ +${r.delta}` : `▼ ${r.delta}`}`);
+      }
+    }
+    for (const p of ranked) items.push(`${p.name} · ${p.points.toLocaleString()}`);
+    return items;
+  }, [room]);
+
   // Tick the clock during timed phases so the host's countdowns stay live.
   useEffect(() => {
     if (room?.status !== 'slots' && room?.status !== 'betting') return;
@@ -72,9 +92,8 @@ export default function RoomPage() {
   if (!name) {
     return (
       <main className="flex flex-1 flex-col items-center justify-center gap-6 p-6">
-        <h1 className="text-center text-2xl font-bold text-zinc-100">
-          Buy in to table{' '}
-          <span className="font-mono tracking-widest text-emerald-400">{roomCode}</span>
+        <h1 className="headline text-center text-3xl">
+          Sit in at table <span className="led text-4xl tracking-widest">{roomCode}</span>
         </h1>
         <form
           onSubmit={(e) => {
@@ -84,17 +103,17 @@ export default function RoomPage() {
             rememberName(trimmed);
             setName(trimmed);
           }}
-          className="panel flex w-full max-w-sm gap-2 p-3"
+          className="board flex w-full max-w-sm gap-2 p-3"
         >
           <input
             autoFocus
             value={nameInput}
             onChange={(e) => setNameInput(e.target.value)}
-            placeholder="Your name"
+            placeholder="YOUR HANDLE"
             maxLength={20}
-            className="field flex-1 px-3 py-2.5"
+            className="input-board flex-1 px-3 py-2.5 uppercase tracking-wide"
           />
-          <button className="btn-bet px-5 py-2.5">Join</button>
+          <button className="btn-slam px-5 py-2.5">Sit</button>
         </form>
       </main>
     );
@@ -103,10 +122,10 @@ export default function RoomPage() {
   if (error) {
     return (
       <main className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
-        <p className="text-5xl">🚫</p>
-        <p className="text-lg text-rose-400">{error}</p>
-        <button onClick={() => router.push('/')} className="btn-ghost px-5 py-2.5">
-          Back to home
+        <p className="headline text-5xl text-down">Off Air</p>
+        <p className="font-mono text-sm uppercase tracking-wide text-down">{error}</p>
+        <button onClick={() => router.push('/')} className="btn-slam ghost px-5 py-2.5">
+          ◂ Back to lobby
         </button>
       </main>
     );
@@ -114,9 +133,10 @@ export default function RoomPage() {
 
   if (!room) {
     return (
-      <main className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-zinc-400">
-        <span className="text-3xl">🎲</span>
-        <p>Taking a seat at the table…</p>
+      <main className="flex flex-1 flex-col items-center justify-center gap-3 p-6">
+        <span className="live-bug text-lg">
+          <span className="dot" /> Tuning in…
+        </span>
       </main>
     );
   }
@@ -140,29 +160,36 @@ export default function RoomPage() {
   }
 
   return (
-    <main className="flex flex-1 flex-col items-center gap-8 p-6">
-      {room.status !== 'lobby' && (
-        <div className="flex w-full max-w-lg items-center justify-between gap-2 rounded-full border border-white/8 bg-black/30 px-4 py-2 text-sm">
-          <span className="font-mono tracking-widest text-zinc-400">#{room.code}</span>
-          {room.round > 0 && (
-            <span className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
-              Round {room.round}
+    <main className="flex flex-1 flex-col">
+      <div className="flex flex-1 flex-col items-center gap-6 p-5">
+        {room.status !== 'lobby' && (
+          /* Broadcast score bug */
+          <div className="flex w-full max-w-lg items-stretch border-2 border-steel font-mono text-xs uppercase">
+            <span className="live-bug flex items-center gap-1.5 bg-black px-3 py-2 text-[0.7rem]">
+              <span className="dot" /> Live
             </span>
-          )}
-          {me && (
-            <span className="flex items-center gap-1.5">
-              <span className="text-zinc-500">{me.name}</span>
-              {isHost ? (
-                <span className="rounded-full bg-gold/15 px-2 py-0.5 text-xs font-bold text-gold">
-                  🎩 Host
+            <span className="flex flex-1 items-center justify-center gap-3 border-x-2 border-steel px-3 tracking-widest text-ash">
+              <span>Table #{room.code}</span>
+              {room.round > 0 && (
+                <span className="text-chalk">
+                  Q{room.round}/{room.questionCount}
                 </span>
-              ) : (
-                <span className="font-mono font-bold text-emerald-400">{me.points} 🪙</span>
               )}
             </span>
-          )}
-        </div>
-      )}
+            {me && (
+              <span className="flex items-center gap-2 bg-black px-3 py-2">
+                {isHost ? (
+                  <span className="font-bold tracking-widest text-board">Host</span>
+                ) : (
+                  <>
+                    <span className="text-[0.6rem] tracking-widest text-ash">Bank</span>
+                    <RollingNumber value={me.points} className="led text-sm" />
+                  </>
+                )}
+              </span>
+            )}
+          </div>
+        )}
 
       <div className="flex flex-1 flex-col items-center justify-center">
         {room.status === 'lobby' && (
@@ -180,10 +207,12 @@ export default function RoomPage() {
             />
           ) : (
             <div className="fade-in space-y-3 text-center">
-              <p className="text-4xl">🃏</p>
-              <p className="text-zinc-300">The host is building the quiz…</p>
-              <p className="text-sm text-zinc-500">
-                {room.questionCount} question{room.questionCount === 1 ? '' : 's'} ready so far.
+              <p className="live-bug justify-center text-base">
+                <span className="dot" /> Standby
+              </p>
+              <p className="headline text-2xl">Building the card…</p>
+              <p className="font-mono text-xs uppercase tracking-widest text-ash">
+                {room.questionCount} question{room.questionCount === 1 ? '' : 's'} on the rundown
               </p>
             </div>
           ))}
@@ -229,13 +258,17 @@ export default function RoomPage() {
         {room.status === 'slots' && (
           <div key={`slots-${room.questionIndex}`} className="fade-in flex w-full flex-col items-center gap-6">
             {isHost ? (
-              <div className="space-y-4 text-center">
-                <p className="text-5xl">🎰</p>
-                <p className="text-lg text-zinc-200">Slot break — players are spinning!</p>
-                <p className="font-mono text-3xl font-black text-gold">{slotSeconds}s</p>
-                <button onClick={() => socket.emit('slots:skip')} className="btn-ghost px-5 py-2.5">
-                  ⏭️ Skip to next question
-                </button>
+              <div className="board w-full max-w-md text-center">
+                <div className="board-hd justify-center">🎰 Slot Break — On The Floor</div>
+                <div className="space-y-4 p-6">
+                  <p className="led text-6xl">{slotSeconds}</p>
+                  <p className="font-mono text-xs uppercase tracking-widest text-ash">
+                    Players are spinning the reels
+                  </p>
+                  <button onClick={() => socket.emit('slots:skip')} className="btn-slam ghost px-5 py-2.5">
+                    ▸ Skip to next question
+                  </button>
+                </div>
               </div>
             ) : (
               <SlotMachine
@@ -253,7 +286,10 @@ export default function RoomPage() {
         {room.status === 'ended' && (
           <Standings room={room} isHost={isHost} onPlayAgain={() => socket.emit('game:start')} />
         )}
+        </div>
       </div>
+
+      {room.status !== 'lobby' && room.status !== 'build' && <Ticker items={tickerItems} />}
     </main>
   );
 }

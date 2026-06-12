@@ -1,11 +1,10 @@
 'use client';
 import { useMemo } from 'react';
 
-// A lightweight, dependency-free celebration burst — a handful of falling paper
-// chips. Rendered briefly when a player wins a bet. Pure CSS animation.
-const COLORS = ['#34d399', '#f5c542', '#b794f6', '#60a5fa', '#fb7185'];
+// A burst of paper chips when a bet hits. Pure CSS animation, no dependency.
+const COLORS = ['#ffb000', '#2ee06a', '#ff3b3b', '#f1e9d2', '#ffc94d'];
 
-export default function Confetti({ count = 40 }) {
+export default function Confetti({ count = 44 }) {
   const pieces = useMemo(
     () =>
       Array.from({ length: count }, (_, i) => ({

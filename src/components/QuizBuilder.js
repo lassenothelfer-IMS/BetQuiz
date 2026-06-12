@@ -3,8 +3,8 @@ import { useMemo, useState } from 'react';
 import pool from '@/data/questionPool.json';
 import QuestionForm from './QuestionForm';
 
-// Host-only build phase (Kahoot-style): assemble the whole quiz before kickoff.
-// Pick ready-made questions from the pool, write your own, then start the game.
+// Host's pre-show RUNDOWN: assemble the whole card before going live. Pull from
+// the pool, write your own, then call the show on.
 const CATEGORIES = ['All', ...Array.from(new Set(pool.map((q) => q.category)))];
 
 export default function QuizBuilder({ questions, onAddPool, onAddCustom, onRemove, onStart }) {
@@ -15,111 +15,87 @@ export default function QuizBuilder({ questions, onAddPool, onAddCustom, onRemov
     () => (category === 'All' ? pool : pool.filter((q) => q.category === category)),
     [category],
   );
-
   const ack = (res) => res?.error && setError(res.error);
 
   return (
-    <div className="fade-in w-full max-w-2xl space-y-6">
+    <div className="fade-in w-full max-w-2xl space-y-5">
       <div className="text-center">
-        <h1 className="text-3xl font-black">
-          <span className="wordmark">Build your quiz</span>
-        </h1>
-        <p className="mt-1 text-sm text-zinc-400">
-          Add questions from the pool or write your own, then deal them in.
-        </p>
+        <p className="font-mono text-xs uppercase tracking-[0.4em] text-board">Build the card</p>
+        <h1 className="headline mt-2 text-4xl">Tonight&apos;s Rundown</h1>
       </div>
 
-      {/* Authored quiz + start */}
-      <div className="panel p-5">
-        <h2 className="mb-3 flex items-center justify-between text-xs font-semibold uppercase tracking-widest text-zinc-400">
-          <span>🃏 Your quiz</span>
-          <span className="rounded-full bg-white/5 px-2 py-0.5 text-emerald-300">{questions.length}</span>
-        </h2>
+      {/* The card + go-live */}
+      <div className="board">
+        <div className="board-hd">
+          <span>The Card</span>
+          <span className="led text-sm">{questions.length}</span>
+        </div>
         {questions.length === 0 ? (
-          <p className="py-4 text-center text-sm text-zinc-500">
-            No questions yet — add some below. 👇
+          <p className="p-6 text-center font-mono text-xs uppercase tracking-wide text-ash">
+            Empty rundown — add questions below ▾
           </p>
         ) : (
-          <ol className="space-y-2">
+          <div>
             {questions.map((q) => (
-              <li
-                key={q.index}
-                className="flex items-center gap-3 rounded-xl bg-black/30 px-3 py-2"
-              >
-                <span className="w-5 text-center font-mono text-sm text-zinc-500">{q.index + 1}</span>
-                <span className="flex-1 truncate text-sm text-zinc-100">{q.text}</span>
-                <span className="font-mono text-xs text-emerald-400/70">✓ {q.answers[q.correctAnswer]}</span>
-                <button
-                  onClick={() => onRemove(q.index, ack)}
-                  aria-label="Remove"
-                  className="px-1 text-zinc-500 transition hover:text-rose-400"
-                >
+              <div key={q.index} className="rank-row">
+                <span className="rank-num text-sm">{q.index + 1}</span>
+                <span className="flex-1 truncate text-sm text-chalk">{q.text}</span>
+                <span className="font-mono text-xs text-up">✓ {q.answers[q.correctAnswer]}</span>
+                <button onClick={() => onRemove(q.index, ack)} className="px-1 text-ash hover:text-down">
                   ✕
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="border-t-2 border-steel p-3">
+          <button onClick={onStart} disabled={questions.length === 0} className="btn-slam w-full px-4 py-3.5">
+            {questions.length === 0
+              ? 'Add a question to go live'
+              : `● Go live · ${questions.length} Q${questions.length === 1 ? '' : 's'}`}
+          </button>
+          {error && <p className="mt-2 text-center font-mono text-xs uppercase text-down">{error}</p>}
+        </div>
+      </div>
+
+      {/* Pool */}
+      <div className="board">
+        <div className="board-hd">
+          <span>The Wire — Question Pool</span>
+        </div>
+        <div className="p-4">
+          <div className="mb-3 flex flex-wrap gap-2">
+            {CATEGORIES.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setCategory(cat)}
+                className={`border-2 px-3 py-1 font-mono text-[0.65rem] uppercase tracking-widest ${
+                  category === cat
+                    ? 'border-board bg-board text-ink'
+                    : 'border-steel text-ash hover:border-board'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+          <ul className="max-h-72 space-y-2 overflow-y-auto pr-1">
+            {filtered.map((q) => (
+              <li key={q.id} className="flex items-center gap-3 border-2 border-steel bg-ink px-3 py-2">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm text-chalk">{q.text}</p>
+                  <p className="font-mono text-[0.6rem] uppercase tracking-widest text-ash">{q.category}</p>
+                </div>
+                <button onClick={() => onAddPool(q.id, ack)} className="btn-slam ghost shrink-0 px-3 py-1.5 text-sm">
+                  + Add
                 </button>
               </li>
             ))}
-          </ol>
-        )}
-        <button
-          onClick={onStart}
-          disabled={questions.length === 0}
-          className="btn-bet mt-4 w-full px-4 py-3.5 text-base"
-        >
-          {questions.length === 0
-            ? 'Add a question to start'
-            : `🎲 Start game · ${questions.length} question${questions.length === 1 ? '' : 's'}`}
-        </button>
-        {error && <p className="mt-2 text-center text-sm text-rose-400">{error}</p>}
-      </div>
-
-      {/* Pool picker */}
-      <div className="panel p-5">
-        <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-zinc-400">
-          📚 Pick from the pool
-        </h2>
-        <div className="mb-3 flex flex-wrap gap-2">
-          {CATEGORIES.map((c) => (
-            <button
-              key={c}
-              onClick={() => setCategory(c)}
-              className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
-                category === c
-                  ? 'bg-emerald-500 text-zinc-950'
-                  : 'bg-white/5 text-zinc-300 hover:bg-white/10'
-              }`}
-            >
-              {c}
-            </button>
-          ))}
+          </ul>
         </div>
-        <ul className="max-h-72 space-y-2 overflow-y-auto pr-1">
-          {filtered.map((q) => (
-            <li
-              key={q.id}
-              className="flex items-center gap-3 rounded-xl border border-white/8 bg-black/20 px-3 py-2"
-            >
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm text-zinc-100">{q.text}</p>
-                <p className="text-xs text-zinc-500">{q.category}</p>
-              </div>
-              <button
-                onClick={() => onAddPool(q.id, ack)}
-                className="btn-ghost shrink-0 px-3 py-1.5 text-sm"
-              >
-                + Add
-              </button>
-            </li>
-          ))}
-        </ul>
       </div>
 
-      {/* Custom question */}
-      <QuestionForm
-        title="✍️ Write your own"
-        submitLabel="+ Add to quiz"
-        resetOnSuccess
-        onSubmit={onAddCustom}
-      />
+      <QuestionForm title="Write Your Own" submitLabel="▸ Add to card" resetOnSuccess onSubmit={onAddCustom} />
     </div>
   );
 }

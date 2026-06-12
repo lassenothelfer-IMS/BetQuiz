@@ -5,8 +5,8 @@ import Confetti from './Confetti';
 
 const remaining = (deadline) => Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
 
-// Shown to the HOST during betting (watch live odds + reveal control) and to
-// EVERYONE at reveal (correct answer highlighted + per-player result banner).
+// Host's booth during betting (watch the board, call the reveal) and EVERYONE's
+// reveal screen (the answer slams in, then your P&L).
 export default function QuestionView({
   room,
   isHost,
@@ -29,31 +29,27 @@ export default function QuestionView({
     const iv = setInterval(tick, 250);
     return () => clearInterval(iv);
   }, [revealed, room.betDeadline]);
+  const clockHot = secondsLeft <= 5;
 
   return (
-    <div className="relative w-full max-w-lg space-y-5">
+    <div className="relative w-full max-w-lg space-y-4">
       {won && <Confetti />}
 
-      <div className="panel p-6">
-        <div className="mb-1 flex items-center justify-between">
-          <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
+      <div className="board">
+        <div className="board-hd">
+          <span>
             Question {room.round}
-            {room.questionCount > 0 && <span className="text-zinc-600"> / {room.questionCount}</span>}
-          </p>
+            {room.questionCount > 0 && <span className="text-ash"> / {room.questionCount}</span>}
+          </span>
           {isHost && !revealed && (
-            <span className="flex items-center gap-2 text-xs">
-              <span className="text-zinc-500">🔒 {betCount}/{activeCount} in</span>
-              <span
-                className={`rounded-full px-2.5 py-0.5 font-mono font-bold ${
-                  secondsLeft <= 5 ? 'bg-rose-500/20 text-rose-300' : 'bg-white/5 text-zinc-300'
-                }`}
-              >
-                ⏱ {secondsLeft}s
-              </span>
+            <span className="flex items-center gap-3">
+              <span className="font-mono text-ash">Locked {betCount}/{activeCount}</span>
+              <span className={`led text-sm ${clockHot ? 'down' : ''}`}>⏱ {secondsLeft}</span>
             </span>
           )}
+          {revealed && <span className="font-mono text-up">Result</span>}
         </div>
-        <p className="text-xl font-semibold text-zinc-50">{question?.text}</p>
+        <p className="headline p-4 text-2xl">{question?.text}</p>
       </div>
 
       <OddsBoard
@@ -63,57 +59,62 @@ export default function QuestionView({
         correctAnswer={correctAnswer}
       />
 
-      {/* Per-player outcome at reveal */}
+      {/* Reveal slam banner */}
+      {revealed && (
+        <div className="slam border-2 border-up bg-up/10 px-4 py-3 text-center">
+          <p className="font-mono text-[0.65rem] uppercase tracking-[0.3em] text-up">Correct answer</p>
+          <p className="headline text-3xl text-up">{question?.answers[correctAnswer]}</p>
+        </div>
+      )}
+
+      {/* Per-player outcome */}
       {revealed && myResult && (
         <div
-          className={`pop-in rounded-2xl border p-4 text-center ${
-            myResult.won
-              ? 'border-emerald-400/50 bg-emerald-500/10 shadow-[0_0_30px_rgba(16,185,129,0.3)]'
-              : 'border-rose-500/40 bg-rose-500/10'
+          className={`slam border-2 px-4 py-3 text-center ${
+            myResult.won ? 'border-up bg-up/10' : 'border-down bg-down/10'
           }`}
         >
-          <p className={`text-lg font-black ${myResult.won ? 'text-emerald-300' : 'text-rose-300'}`}>
-            {myResult.won ? '🎉 You cashed out!' : '💸 Tough luck'}
+          <p className={`headline text-2xl ${myResult.won ? 'text-up' : 'text-down'}`}>
+            {myResult.won ? 'You cashed!' : 'Busted bet'}
           </p>
-          <p className="mt-1 text-sm text-zinc-300">
+          <p className="mt-1 font-mono text-sm text-chalk">
             {myResult.won
-              ? `${myResult.amount} @ ${myResult.oddsAtBet.toFixed(2)}× → `
-              : `Lost your ${myResult.amount} stake → `}
-            <span
-              className={`font-mono font-bold ${myResult.won ? 'text-emerald-400' : 'text-rose-400'}`}
-            >
-              {myResult.delta > 0 ? `+${myResult.delta}` : myResult.delta} pts
+              ? `${myResult.amount} @ ${myResult.oddsAtBet.toFixed(2)} → `
+              : `Lost ${myResult.amount} stake → `}
+            <span className={`led ${myResult.won ? 'up' : 'down'}`}>
+              {myResult.delta > 0 ? `+${myResult.delta}` : myResult.delta}
             </span>
           </p>
         </div>
       )}
       {revealed && !myResult && !isHost && (
-        <p className="text-center text-sm text-zinc-500">You sat this one out. 🍿</p>
+        <p className="text-center font-mono text-xs uppercase tracking-wide text-ash">
+          You sat this one out.
+        </p>
       )}
 
-      {/* Host gets live betting progress */}
       {isHost && !revealed && (
-        <p className="text-center text-sm text-zinc-500">
-          Auto-reveals when everyone's locked in or the timer ends — odds move live as players bet.
+        <p className="text-center font-mono text-[0.65rem] uppercase tracking-[0.2em] text-ash">
+          Auto-reveals when all are in or the clock runs out
         </p>
       )}
 
       {isHost ? (
         <div className="flex gap-3">
           {!revealed ? (
-            <button onClick={onReveal} className="btn-bet w-full px-4 py-3.5 text-base">
-              🔔 Reveal now
+            <button onClick={onReveal} className="btn-slam w-full px-4 py-3.5">
+              ▸ Reveal now
             </button>
           ) : isLastQuestion ? (
-            <button onClick={onEnd} className="btn-bet w-full px-4 py-3.5 text-base">
-              🏁 Finish game
+            <button onClick={onEnd} className="btn-slam up w-full px-4 py-3.5">
+              ⚑ Final standings
             </button>
           ) : (
             <>
-              <button onClick={onNext} className="btn-bet flex-1 px-4 py-3.5">
-                {slotNext ? '🎰 Slot break →' : 'Next question →'}
+              <button onClick={onNext} className="btn-slam flex-1 px-4 py-3.5">
+                {slotNext ? '🎰 Slot break ▸' : 'Next question ▸'}
               </button>
-              <button onClick={onEnd} className="btn-ghost flex-1 px-4 py-3.5">
+              <button onClick={onEnd} className="btn-slam ghost flex-1 px-4 py-3.5">
                 End early
               </button>
             </>
@@ -121,7 +122,9 @@ export default function QuestionView({
         </div>
       ) : (
         !revealed && (
-          <p className="text-center text-sm text-zinc-500">Betting is open — odds are moving…</p>
+          <p className="text-center font-mono text-xs uppercase tracking-wide text-ash">
+            Board is live — odds are moving…
+          </p>
         )
       )}
     </div>

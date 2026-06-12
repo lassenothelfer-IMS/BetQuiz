@@ -1,14 +1,13 @@
 'use client';
 import { useState } from 'react';
 
-// Host-only form for composing a question: the text, 2–6 answers, and which
-// answer is correct. Calls onSubmit(payload, ack) where ack receives any
-// server-side validation error.
+// Host-only question editor: the prompt, 2–6 answers, and which is correct.
+// Calls onSubmit(payload, ack); ack carries any server-side validation error.
 const MAX_ANSWERS = 6;
 
 export default function QuestionForm({
-  title = '🎩 Set the question',
-  submitLabel = 'Open the betting 🎲',
+  title = 'Write a Question',
+  submitLabel = '▸ Add',
   resetOnSuccess = false,
   onSubmit,
 }) {
@@ -23,7 +22,6 @@ export default function QuestionForm({
     setAnswers(['', '']);
     setCorrect(0);
   }
-
   const setAnswer = (i, v) => setAnswers((a) => a.map((x, j) => (j === i ? v : x)));
   const addAnswer = () => setAnswers((a) => (a.length < MAX_ANSWERS ? [...a, ''] : a));
   const removeAnswer = (i) => {
@@ -46,68 +44,70 @@ export default function QuestionForm({
   }
 
   return (
-    <form onSubmit={submit} className="panel w-full max-w-lg space-y-5 p-6">
-      <h2 className="text-xs font-semibold uppercase tracking-widest text-zinc-400">{title}</h2>
+    <form onSubmit={submit} className="board w-full">
+      <div className="board-hd">
+        <span>{title}</span>
+        <span className="font-mono text-ash">Mark the correct one</span>
+      </div>
+      <div className="space-y-4 p-4">
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Type your question…"
+          rows={2}
+          className="input-board w-full resize-none px-3 py-2.5 font-sans"
+        />
 
-      <textarea
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        placeholder="Type your question…"
-        rows={2}
-        className="field w-full resize-none px-3 py-2.5"
-      />
-
-      <div className="space-y-2">
-        <p className="text-xs text-zinc-500">Tap the coin to mark the correct answer.</p>
-        {answers.map((a, i) => (
-          <div key={i} className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setCorrect(i)}
-              aria-label="Mark correct"
-              title="Mark correct"
-              className={`grid h-7 w-7 shrink-0 place-items-center rounded-full border-2 text-xs font-bold transition ${
-                correct === i
-                  ? 'border-emerald-400 bg-emerald-400 text-emerald-950 shadow-[0_0_14px_rgba(16,185,129,0.5)]'
-                  : 'border-white/20 text-zinc-600 hover:border-emerald-500/60'
-              }`}
-            >
-              {correct === i ? '✓' : String.fromCharCode(65 + i)}
-            </button>
-            <input
-              value={a}
-              onChange={(e) => setAnswer(i, e.target.value)}
-              placeholder={`Answer ${i + 1}`}
-              className="field flex-1 px-3 py-2.5"
-            />
-            {answers.length > 2 && (
+        <div className="space-y-2">
+          {answers.map((a, i) => (
+            <div key={i} className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => removeAnswer(i)}
-                aria-label="Remove answer"
-                className="px-2 text-zinc-500 transition hover:text-rose-400"
+                onClick={() => setCorrect(i)}
+                aria-label="Mark correct"
+                className={`grid h-9 w-9 shrink-0 place-items-center border-2 font-display text-sm ${
+                  correct === i
+                    ? 'border-up bg-up text-ink'
+                    : 'border-steel text-ash hover:border-board'
+                }`}
               >
-                ✕
+                {correct === i ? '✓' : String.fromCharCode(65 + i)}
               </button>
-            )}
-          </div>
-        ))}
-        {answers.length < MAX_ANSWERS && (
-          <button
-            type="button"
-            onClick={addAnswer}
-            className="text-sm font-semibold text-emerald-400 hover:text-emerald-300"
-          >
-            + Add answer
-          </button>
-        )}
+              <input
+                value={a}
+                onChange={(e) => setAnswer(i, e.target.value)}
+                placeholder={`Answer ${i + 1}`}
+                className="input-board h-9 flex-1 px-3 font-sans"
+              />
+              {answers.length > 2 && (
+                <button
+                  type="button"
+                  onClick={() => removeAnswer(i)}
+                  aria-label="Remove"
+                  className="px-2 text-ash hover:text-down"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          ))}
+          {answers.length < MAX_ANSWERS && (
+            <button
+              type="button"
+              onClick={addAnswer}
+              className="font-mono text-xs uppercase tracking-widest text-board hover:text-board-bright"
+            >
+              + Add answer
+            </button>
+          )}
+        </div>
+
+        {error && <p className="font-mono text-xs uppercase text-down">{error}</p>}
+
+        <button disabled={busy} className="btn-slam w-full px-4 py-3">
+          {submitLabel}
+        </button>
       </div>
-
-      {error && <p className="text-sm font-medium text-rose-400">{error}</p>}
-
-      <button disabled={busy} className="btn-bet w-full px-4 py-3.5 text-base">
-        {submitLabel}
-      </button>
     </form>
   );
 }

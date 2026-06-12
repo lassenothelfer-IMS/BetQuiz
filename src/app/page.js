@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { getSocket } from '@/lib/socket';
 import { useSocketStatus } from '@/lib/useSocketStatus';
 import { rememberName } from '@/lib/session';
+import Ticker from '@/components/Ticker';
 
 export default function Home() {
   const router = useRouter();
@@ -15,18 +16,15 @@ export default function Home() {
 
   function createRoom() {
     const trimmed = name.trim();
-    if (!trimmed) return setError('Enter your name to take a seat.');
+    if (!trimmed) return setError('Enter your handle first.');
     setError('');
     setBusy(true);
-
-    // Don't hang forever if the server can't be reached — give clear feedback.
     let done = false;
     const timer = setTimeout(() => {
       if (done) return;
       setBusy(false);
-      setError("Couldn't reach the game server. If it's on a free host it may be waking up — wait ~30s and try again.");
+      setError("Can't reach the network. If it's on a free host it may be waking up — wait ~30s and retry.");
     }, 10000);
-
     getSocket().emit('room:create', { name: trimmed }, (res) => {
       done = true;
       clearTimeout(timer);
@@ -40,81 +38,90 @@ export default function Home() {
   function joinRoom() {
     const trimmed = name.trim();
     const roomCode = code.trim().toUpperCase();
-    if (!trimmed) return setError('Enter your name to take a seat.');
-    if (!roomCode) return setError('Enter a table code to join.');
+    if (!trimmed) return setError('Enter your handle first.');
+    if (!roomCode) return setError('Enter a table number.');
     setError('');
     rememberName(trimmed);
     router.push(`/room/${roomCode}`);
   }
 
   return (
-    <main className="flex flex-1 flex-col items-center justify-center gap-10 p-6">
-      <header className="fade-in text-center">
-        <h1 className="text-6xl font-black tracking-tighter sm:text-7xl">
-          <span className="wordmark">BetQuiz</span>
-        </h1>
-        <p className="mt-3 text-lg text-zinc-300">
-          Know the answer. <span className="text-emerald-400">Beat the odds.</span> Own the board.
-        </p>
-        <p className="mt-1 text-sm text-zinc-500">
-          The quiz where the smart money bets against the crowd.
-        </p>
-      </header>
-
-      {status === 'offline' && (
-        <div className="w-full max-w-sm rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-center text-sm text-amber-200">
-          ⚠️ Can't reach the game server. On a free host it may be waking up — this
-          can take ~30–50s. Keep this tab open; it'll reconnect automatically.
-        </div>
-      )}
-
-      <div className="fade-in panel w-full max-w-sm space-y-5 p-6">
-        <label className="block">
-          <span className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-zinc-400">
-            Player name
-          </span>
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. Alex"
-            maxLength={20}
-            className="field w-full px-3 py-2.5"
-          />
-        </label>
-
-        <button
-          onClick={createRoom}
-          disabled={busy}
-          className="btn-bet w-full px-4 py-3 text-base"
-        >
-          🎲 Create a table
-        </button>
-
-        <div className="flex items-center gap-3 text-xs uppercase tracking-widest text-zinc-600">
-          <span className="h-px flex-1 bg-white/10" /> or buy in <span className="h-px flex-1 bg-white/10" />
+    <main className="flex flex-1 flex-col">
+      <div className="flex flex-1 flex-col items-center justify-center gap-8 px-5 py-10">
+        {/* Title card */}
+        <div className="text-center">
+          <p className="font-mono text-xs uppercase tracking-[0.45em] text-board">Now broadcasting</p>
+          <h1 className="headline mt-3 text-7xl sm:text-8xl">
+            Bet<span className="text-board">Quiz</span>
+          </h1>
+          <div className="mx-auto mt-3 flex max-w-md items-center justify-center gap-3 font-mono text-[0.7rem] uppercase tracking-[0.2em] text-ash">
+            <span className="h-px flex-1 bg-steel" />
+            Read it · price it · bet it
+            <span className="h-px flex-1 bg-steel" />
+          </div>
         </div>
 
-        <div className="flex gap-2">
-          <input
-            value={code}
-            onChange={(e) => setCode(e.target.value.toUpperCase())}
-            placeholder="CODE"
-            maxLength={4}
-            className="field w-28 px-3 py-2.5 text-center font-mono text-lg tracking-[0.4em]"
-          />
-          <button onClick={joinRoom} className="btn-ghost flex-1 px-4 py-2.5">
-            Join table
-          </button>
-        </div>
+        {status === 'offline' && (
+          <div className="w-full max-w-md border-2 border-down/60 bg-down/10 px-4 py-3 text-center font-mono text-xs uppercase tracking-wide text-down">
+            ⚠ Network unreachable — a free host may be waking up (~30–50s). It reconnects automatically.
+          </div>
+        )}
 
-        {error && <p className="text-sm font-medium text-rose-400">{error}</p>}
+        {/* Control deck */}
+        <div className="board w-full max-w-md">
+          <div className="board-hd">
+            <span>Player Check-in</span>
+            <span className="font-mono text-ash">No account</span>
+          </div>
+          <div className="space-y-5 p-5">
+            <label className="block">
+              <span className="mb-1.5 block font-mono text-[0.65rem] uppercase tracking-[0.2em] text-ash">
+                Your handle
+              </span>
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. ACE"
+                maxLength={20}
+                className="input-board w-full px-3 py-2.5 text-lg uppercase tracking-wide"
+              />
+            </label>
+
+            <button onClick={createRoom} disabled={busy} className="btn-slam w-full px-4 py-3.5">
+              ▸ Open a table
+            </button>
+
+            <div className="flex items-center gap-3 font-mono text-[0.6rem] uppercase tracking-[0.25em] text-ash">
+              <span className="h-px flex-1 bg-steel" /> or sit in <span className="h-px flex-1 bg-steel" />
+            </div>
+
+            <div className="flex gap-2">
+              <input
+                value={code}
+                onChange={(e) => setCode(e.target.value.toUpperCase())}
+                placeholder="TABLE"
+                maxLength={4}
+                className="input-board w-32 px-3 py-2.5 text-center text-xl tracking-[0.3em]"
+              />
+              <button onClick={joinRoom} className="btn-slam ghost flex-1 px-4 py-2.5">
+                Take a seat
+              </button>
+            </div>
+
+            {error && <p className="font-mono text-xs uppercase text-down">{error}</p>}
+          </div>
+        </div>
       </div>
 
-      <p className="fade-in flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-zinc-600">
-        <span>🪙 No real money</span>
-        <span>⚡ No sign-up</span>
-        <span>👥 Play with friends</span>
-      </p>
+      <Ticker
+        items={[
+          'No real money — bragging rights only',
+          'Bet against the crowd to win the most',
+          'Climb the standings',
+          'Slot break every 3rd round',
+          'One good answer changes everything',
+        ]}
+      />
     </main>
   );
 }

@@ -2,11 +2,10 @@
 import { useEffect, useState } from 'react';
 import OddsBoard from './OddsBoard';
 
-// Player view during betting: pick an answer, set a stake, lock it in. Bets are
-// FINAL once placed. Betting closes when everyone's locked in or the 20s timer
-// runs out. Odds move live as others bet (before you lock yours).
+// Player betting view. Pick a runner on the tote board, size the bet on the
+// control deck, lock it in — and it prints a paper stub. Bets are FINAL. Betting
+// closes when everyone's locked in or the 20s clock hits zero.
 const STAKES = [100, 200, 300];
-
 const remaining = (deadline) => Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
 
 export default function BettingPanel({ room, points, myBet, bailedOut, onPlaceBet }) {
@@ -28,8 +27,8 @@ export default function BettingPanel({ room, points, myBet, bailedOut, onPlaceBe
   const locked = !!myBet;
 
   function place() {
-    if (answer === null) return setError('Pick an answer on the board.');
-    if (!stake) return setError('Drop some chips to set your stake.');
+    if (answer === null) return setError('Pick a runner on the board.');
+    if (!stake) return setError('Size your stake.');
     setError('');
     setBusy(true);
     onPlaceBet({ answerId: answer, amount: stake }, (res) => {
@@ -40,35 +39,32 @@ export default function BettingPanel({ room, points, myBet, bailedOut, onPlaceBe
 
   const liveOdds = answer !== null && odds ? odds[answer] : null;
   const payout = answer !== null && stake && odds ? Math.round(stake * odds[answer]) : null;
+  const clockHot = secondsLeft <= 5;
 
   return (
-    <div className="fade-in w-full max-w-lg space-y-5">
+    <div className="fade-in w-full max-w-lg space-y-4">
       {bailedOut && (
-        <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-2.5 text-center text-sm text-amber-200">
-          💸 You were running low — here's <span className="font-bold">+50</span> to stay in the game!
+        <div className="border-2 border-board/60 bg-board/10 px-4 py-2 text-center font-mono text-xs uppercase tracking-wide text-board">
+          ⛑ Short stack — staked you <b>+50</b> to keep you in the game
         </div>
       )}
 
-      <div className="panel p-6">
-        <div className="mb-2 flex items-center justify-between">
-          <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
+      {/* Question — lower third */}
+      <div className="board">
+        <div className="board-hd">
+          <span>
             Question {room.round}
-            {room.questionCount > 0 && <span className="text-zinc-600"> / {room.questionCount}</span>}
-          </p>
-          <span className="flex items-center gap-2 text-xs">
-            <span className="text-zinc-500">🔒 {room.betCount}/{room.activeCount} in</span>
-            <span
-              className={`rounded-full px-2.5 py-0.5 font-mono font-bold ${
-                secondsLeft <= 5 ? 'bg-rose-500/20 text-rose-300' : 'bg-white/5 text-zinc-300'
-              }`}
-            >
-              ⏱ {secondsLeft}s
-            </span>
+            {room.questionCount > 0 && <span className="text-ash"> / {room.questionCount}</span>}
+          </span>
+          <span className="flex items-center gap-3">
+            <span className="font-mono text-ash">Locked {room.betCount}/{room.activeCount}</span>
+            <span className={`led text-sm ${clockHot ? 'down' : ''}`}>⏱ {secondsLeft}</span>
           </span>
         </div>
-        <p className="text-xl font-semibold text-zinc-50">{question?.text}</p>
+        <p className="headline p-4 text-2xl">{question?.text}</p>
       </div>
 
+      {/* Tote board */}
       <OddsBoard
         answers={question.answers}
         odds={odds}
@@ -76,45 +72,58 @@ export default function BettingPanel({ room, points, myBet, bailedOut, onPlaceBe
         onSelect={locked ? undefined : setAnswer}
       />
 
-      {/* ---- Bet slip ---- */}
-      <div className="slip p-5">
-        <div className="mb-4 flex items-center justify-between border-b border-dashed border-white/10 pb-3">
-          <span className="text-sm font-bold uppercase tracking-widest text-gold">🎟️ Bet slip</span>
-          <span className="text-xs text-zinc-400">
-            Balance <span className="font-mono font-bold text-emerald-400">{points}</span> 🪙
-          </span>
-        </div>
-
-        {locked ? (
-          <div className="space-y-3 text-center">
-            <p className="text-sm text-zinc-300">
-              ✓ Locked in: <span className="font-bold text-zinc-50">{myBet.amount}</span> on “
-              {question.answers[myBet.answerId]}” @{' '}
-              <span className="font-mono text-emerald-400">{myBet.oddsAtBet.toFixed(2)}×</span>
-            </p>
-            <p className="font-mono text-3xl font-black text-gold drop-shadow-[0_0_18px_rgba(245,197,66,0.35)]">
-              +{Math.round(myBet.amount * myBet.oddsAtBet)}
-            </p>
-            <p className="text-xs text-zinc-500">
-              Bets are final. Waiting for the others — {room.betCount}/{room.activeCount} locked in.
-            </p>
+      {locked ? (
+        /* Printed paper stub */
+        <div className="stub p-5">
+          <div className="flex items-center justify-between text-[0.65rem] uppercase tracking-[0.2em]">
+            <span className="font-bold">● BetQuiz Tote</span>
+            <span>Table #{room.code}</span>
           </div>
-        ) : (
-          <>
-            <div className="mb-4 flex items-center justify-between text-sm">
-              <span className="text-zinc-400">Your pick</span>
+          <div className="stub-perf my-3" />
+          <div className="flex items-center justify-between text-sm">
+            <span className="opacity-70">Selection</span>
+            <span className="font-bold uppercase">{question.answers[myBet.answerId]}</span>
+          </div>
+          <div className="mt-1 flex items-center justify-between text-sm">
+            <span className="opacity-70">Stake @ Odds</span>
+            <span className="font-bold">{myBet.amount} @ {myBet.oddsAtBet.toFixed(2)}</span>
+          </div>
+          <div className="stub-perf my-3" />
+          <div className="flex items-end justify-between">
+            <span className="text-[0.65rem] uppercase tracking-[0.2em] opacity-70">To return</span>
+            <span className="font-mono text-4xl font-black">{Math.round(myBet.amount * myBet.oddsAtBet)}</span>
+          </div>
+          <div className="mt-4 flex items-center justify-between">
+            <span className="stamp text-sm">Placed</span>
+            <span className="text-right text-[0.65rem] uppercase tracking-wide opacity-70">
+              Final bet<br />
+              Awaiting {room.activeCount - room.betCount} more
+            </span>
+          </div>
+        </div>
+      ) : (
+        /* Control deck */
+        <div className="board">
+          <div className="board-hd">
+            <span>Bet Slip</span>
+            <span className="font-mono text-ash">
+              Bankroll <span className="led text-xs">{points}</span>
+            </span>
+          </div>
+          <div className="p-4">
+            <div className="mb-3 flex items-center justify-between text-sm">
+              <span className="font-mono text-[0.65rem] uppercase tracking-[0.2em] text-ash">Selection</span>
               {answer !== null ? (
-                <span className="font-semibold text-zinc-50">
+                <span className="font-semibold uppercase text-chalk">
                   {question.answers[answer]}{' '}
-                  <span className="font-mono text-emerald-400">@ {liveOdds?.toFixed(2)}×</span>
+                  <span className="led text-sm">@ {liveOdds?.toFixed(2)}</span>
                 </span>
               ) : (
-                <span className="text-zinc-600">— pick an answer above —</span>
+                <span className="font-mono text-xs text-ash">— pick above —</span>
               )}
             </div>
 
-            <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-zinc-500">Stake</p>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               {STAKES.map((s) => (
                 <button
                   key={s}
@@ -122,7 +131,7 @@ export default function BettingPanel({ room, points, myBet, bailedOut, onPlaceBe
                   disabled={s > points}
                   data-active={stake === s}
                   onClick={() => setStake(s)}
-                  className="chip h-16 w-16 text-sm"
+                  className="stake h-12 flex-1 text-base"
                 >
                   {s}
                 </button>
@@ -136,29 +145,27 @@ export default function BettingPanel({ room, points, myBet, bailedOut, onPlaceBe
                   const v = parseInt(e.target.value, 10);
                   setStake(Number.isFinite(v) ? Math.min(v, points) : null);
                 }}
-                placeholder="Custom"
-                className="field h-16 w-20 px-2 text-center font-mono font-bold"
+                placeholder="ANY"
+                className="input-board h-12 w-20 px-2 text-center font-bold"
               />
             </div>
 
-            <div className="mt-5 flex items-end justify-between border-t border-dashed border-white/10 pt-4">
-              <span className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
-                Potential payout
-              </span>
-              <span className="font-mono text-3xl font-black text-gold drop-shadow-[0_0_18px_rgba(245,197,66,0.35)]">
-                {payout !== null ? `+${payout}` : '—'}
-              </span>
+            <div className="mt-4 flex items-end justify-between border-t-2 border-dashed border-steel pt-3">
+              <span className="font-mono text-[0.65rem] uppercase tracking-[0.2em] text-ash">To return</span>
+              <span className="led text-3xl">{payout !== null ? payout : '—'}</span>
             </div>
 
-            {error && <p className="mt-3 text-center text-sm font-medium text-rose-400">{error}</p>}
+            {error && <p className="mt-3 text-center font-mono text-xs uppercase text-down">{error}</p>}
 
-            <button onClick={place} disabled={busy} className="btn-bet mt-4 w-full px-4 py-3 text-base">
-              🔒 Lock in bet
+            <button onClick={place} disabled={busy} className="btn-slam mt-4 w-full px-4 py-3.5">
+              ▸ Lock in bet
             </button>
-            <p className="mt-2 text-center text-xs text-zinc-600">Careful — bets can't be changed.</p>
-          </>
-        )}
-      </div>
+            <p className="mt-2 text-center font-mono text-[0.6rem] uppercase tracking-[0.2em] text-ash">
+              Bets are final — no take-backs
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

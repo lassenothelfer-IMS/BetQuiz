@@ -1,63 +1,42 @@
 'use client';
+import RollingNumber from './RollingNumber';
 
-// Running standings shown between rounds and at reveal (the brief's "live ranking
-// visible after each question"). When `results` is provided, each player's point
-// change from the round just scored is shown next to their total.
-export default function Leaderboard({ players, hostId, results = null, title = 'The board' }) {
+// Live STANDINGS — a league table that shifts after every round. When `results`
+// is supplied, each player's swing from the round just scored is shown.
+export default function Leaderboard({ players, hostId, results = null, title = 'Standings' }) {
   const deltas = {};
   if (results) for (const r of results) deltas[r.playerId] = r.delta;
 
-  const ranked = players
-    .filter((p) => p.id !== hostId)
-    .sort((a, b) => b.points - a.points);
-
+  const ranked = players.filter((p) => p.id !== hostId).sort((a, b) => b.points - a.points);
   if (ranked.length === 0) return null;
 
   return (
-    <div className="panel w-full max-w-lg p-5">
-      <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-zinc-400">{title}</h2>
-      <ol className="space-y-1.5">
+    <div className="board w-full max-w-lg">
+      <div className="board-hd">
+        <span>{title}</span>
+        <span className="font-mono text-ash">Bankroll</span>
+      </div>
+      <div>
         {ranked.map((p, i) => {
           const delta = deltas[p.id];
-          const isLeader = i === 0;
+          const lead = i === 0;
           return (
-            <li
-              key={p.id}
-              className={`flex items-center gap-3 rounded-xl px-3 py-2 ${
-                isLeader
-                  ? 'border border-gold/30 bg-gold/10'
-                  : 'bg-black/30'
-              }`}
-            >
-              <span
-                className={`w-6 text-center font-mono text-sm font-bold ${
-                  isLeader ? 'text-gold' : 'text-zinc-500'
-                }`}
-              >
-                {isLeader ? '👑' : i + 1}
+            <div key={p.id} className={`rank-row ${lead ? 'lead' : ''}`}>
+              <span className="rank-num">{i + 1}</span>
+              <span className="tile">{p.name.charAt(0).toUpperCase()}</span>
+              <span className="flex-1 truncate font-semibold uppercase tracking-wide text-chalk">
+                {p.name}
               </span>
-              <span className="avatar">{p.name.charAt(0).toUpperCase()}</span>
-              <span className="flex-1 truncate text-zinc-100">{p.name}</span>
               {delta != null && delta !== 0 && (
-                <span
-                  className={`font-mono text-xs font-semibold ${
-                    delta > 0 ? 'text-emerald-400' : 'text-rose-400'
-                  }`}
-                >
-                  {delta > 0 ? `+${delta}` : delta}
+                <span className={`led text-xs ${delta > 0 ? 'up' : 'down'}`}>
+                  {delta > 0 ? `▲${delta}` : `▼${Math.abs(delta)}`}
                 </span>
               )}
-              <span
-                className={`w-16 text-right font-mono font-bold ${
-                  isLeader ? 'text-gold' : 'text-zinc-200'
-                }`}
-              >
-                {p.points}
-              </span>
-            </li>
+              <RollingNumber value={p.points} className={`led w-20 text-right ${lead ? '' : ''}`} />
+            </div>
           );
         })}
-      </ol>
+      </div>
     </div>
   );
 }
