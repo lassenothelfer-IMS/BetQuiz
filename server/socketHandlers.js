@@ -25,6 +25,10 @@ function registerSocketHandlers(io) {
   // One pending phase timer per room (betting auto-reveal OR slot auto-advance).
   const phaseTimers = new Map();
 
+  // After the last spin, hold on the result long enough to see the reels settle
+  // (~1.25s animation) and read the win before the round continues.
+  const SLOT_END_DELAY = 3500;
+
   function broadcastRoom(code) {
     const room = getRoom(code);
     if (room) io.to(code).emit('room:update', serializeRoom(room));
@@ -72,6 +76,12 @@ function registerSocketHandlers(io) {
       broadcastRoom(code);
       armTimer(code); // the next betting round gets its own 20s timer
     }
+  }
+
+  // Everyone's done spinning — hold on the result, then continue.
+  function scheduleSlotsEnd(code) {
+    clearTimer(code);
+    phaseTimers.set(code, setTimeout(() => advanceFromSlots(code), SLOT_END_DELAY));
   }
 
   io.on('connection', (socket) => {
@@ -208,10 +218,10 @@ function registerSocketHandlers(io) {
         spinsLeft: res.spinsLeft,
         points: res.points,
       });
+      broadcastRoom(socket.data.code); // update the leaderboard with the winnings
       if (res.allDone) {
-        advanceFromSlots(socket.data.code); // everyone has spun -> continue
-      } else {
-        broadcastRoom(socket.data.code);
+        // Don't yank the screen away — hold on the result, then continue.
+        scheduleSlotsEnd(socket.data.code);
       }
     });
 
