@@ -31,6 +31,16 @@ export default function QuestionView({
   }, [revealed, room.betDeadline]);
   const clockHot = secondsLeft <= 5;
 
+  // Reveal -> next-round auto-advance countdown.
+  const [nextIn, setNextIn] = useState(() => remaining(room.revealDeadline));
+  useEffect(() => {
+    if (!revealed || !room.revealDeadline) return;
+    const tick = () => setNextIn(remaining(room.revealDeadline));
+    tick();
+    const iv = setInterval(tick, 250);
+    return () => clearInterval(iv);
+  }, [revealed, room.revealDeadline]);
+
   return (
     <div className="relative w-full max-w-lg space-y-4">
       {won && <Confetti />}
@@ -99,6 +109,13 @@ export default function QuestionView({
         </p>
       )}
 
+      {/* Reveal: auto-advances on its own; the host can skip the wait */}
+      {revealed && (
+        <p className="text-center font-mono text-[0.7rem] uppercase tracking-[0.2em] text-board">
+          ▸ {isLastQuestion ? 'Final standings' : slotNext ? 'Slot break' : 'Next round'} in {nextIn}s
+        </p>
+      )}
+
       {isHost ? (
         <div className="flex gap-3">
           {!revealed ? (
@@ -107,15 +124,15 @@ export default function QuestionView({
             </button>
           ) : isLastQuestion ? (
             <button onClick={onEnd} className="btn-slam up w-full px-4 py-3.5">
-              ⚑ Final standings
+              ⚑ Final standings now
             </button>
           ) : (
             <>
               <button onClick={onNext} className="btn-slam flex-1 px-4 py-3.5">
-                {slotNext ? '🎰 Slot break ▸' : 'Next question ▸'}
+                {slotNext ? '🎰 Slot break now ▸' : 'Skip to next ▸'}
               </button>
               <button onClick={onEnd} className="btn-slam ghost flex-1 px-4 py-3.5">
-                End early
+                End game
               </button>
             </>
           )}

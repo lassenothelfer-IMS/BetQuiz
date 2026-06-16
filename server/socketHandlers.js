@@ -46,8 +46,9 @@ function registerSocketHandlers(io) {
     }
   }
 
-  // Arm the timer that matches the room's current phase: betting auto-reveals at
-  // its deadline; a slot break auto-advances at its (fallback) deadline.
+  // Arm the timer that matches the room's current phase: betting auto-reveals,
+  // a reveal auto-advances to the next round, a slot break auto-continues — all
+  // at their respective deadlines, so the host never has to babysit the game.
   function armTimer(code) {
     clearTimer(code);
     const room = getRoom(code);
@@ -55,6 +56,9 @@ function registerSocketHandlers(io) {
     if (room.status === 'betting' && room.betDeadline) {
       const ms = Math.max(0, room.betDeadline - Date.now());
       phaseTimers.set(code, setTimeout(() => revealNow(code), ms));
+    } else if (room.status === 'reveal' && room.revealDeadline) {
+      const ms = Math.max(0, room.revealDeadline - Date.now());
+      phaseTimers.set(code, setTimeout(() => autoNext(code), ms));
     } else if (room.status === 'slots' && room.slotDeadline) {
       const ms = Math.max(0, room.slotDeadline - Date.now());
       phaseTimers.set(code, setTimeout(() => advanceFromSlots(code), ms));
@@ -65,7 +69,20 @@ function registerSocketHandlers(io) {
   function revealNow(code) {
     clearTimer(code);
     const res = revealAnswer(code);
-    if (res?.room) broadcastRoom(code);
+    if (res?.room) {
+      broadcastRoom(code);
+      armTimer(code); // start the reveal -> next-round countdown
+    }
+  }
+
+  // Auto-advance from a reveal to the next round (slot break / next question / end).
+  function autoNext(code) {
+    clearTimer(code);
+    const res = nextRound(code);
+    if (res?.room) {
+      broadcastRoom(code);
+      armTimer(code); // arm whatever the new phase needs
+    }
   }
 
   // Leave the slot break for the next question (timer fired, everyone done, or host).

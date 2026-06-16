@@ -10,6 +10,7 @@ const { getPoolQuestion } = require('./questionPool');
 const STARTING_POINTS = 1000;
 const MAX_QUESTIONS = 20;
 const BET_SECONDS = 20; // betting window before it auto-reveals
+const REVEAL_SECONDS = 7; // how long the result stays up before auto-advancing
 const BAILOUT_THRESHOLD = 50; // players below this get topped up before each round
 const BAILOUT_AMOUNT = 50;
 const SLOT_EVERY = 3; // a slot break happens after every Nth round
@@ -49,6 +50,7 @@ function createRoom(hostId, hostName) {
     currentQuestion: null, // mirrors questions[questionIndex] while a round is live
     bets: [], // { playerId, answerId, amount, oddsAtBet } — one locked bet per player
     betDeadline: null, // ms timestamp the betting window auto-reveals
+    revealDeadline: null, // ms timestamp the result auto-advances to the next round
     lastBailouts: [], // playerIds topped up at the start of the current round
     lastResults: null, // scored outcome of the most recent reveal
     slotSpins: new Map(), // playerId -> spins used this slot break
@@ -247,6 +249,7 @@ function revealAnswer(code) {
   }
   room.lastResults = results;
   room.betDeadline = null;
+  room.revealDeadline = Date.now() + REVEAL_SECONDS * 1000;
   room.status = 'reveal';
   return { room };
 }
@@ -364,6 +367,7 @@ function serializeRoom(room) {
     bailouts: room.status === 'betting' ? room.lastBailouts : [],
     correctAnswer: revealed && q ? q.correctAnswer : null,
     results: revealed ? room.lastResults : null,
+    revealDeadline: revealed ? room.revealDeadline : null,
     slotDeadline: room.status === 'slots' ? room.slotDeadline : null,
     spinsDone: room.status === 'slots' ? [...room.slotSpins.values()].filter((n) => n >= MAX_SPINS).length : 0,
   };
