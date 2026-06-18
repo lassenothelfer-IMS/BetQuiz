@@ -339,31 +339,232 @@ body::after {
   opacity: 0.92;
 }
 
-/* ---------------------------------------------------------------- slot grid */
-.slot-grid {
+/* ========================================================= THE BANDIT cabinet
+   A gritty premium slot machine: metal cabinet, blinking marquee, recessed
+   reels with glass glare, rarity symbols, drawn paylines, big-win glow. */
+.bandit {
+  position: relative;
+  border: 3px solid #000;
+  background: linear-gradient(180deg, #2b2d34, #15161b 16%, #0b0c10 84%, #1b1c22);
+  box-shadow:
+    inset 0 0 0 2px #3a3d47,
+    inset 0 2px 0 rgba(255, 255, 255, 0.08),
+    0 26px 64px rgba(0, 0, 0, 0.65);
+}
+.bandit[data-event] { animation: cab-pulse 0.5s ease-in-out infinite alternate; }
+.bandit[data-event="jackpot"] { --cab: #ff3b3b; }
+.bandit[data-event="bigwin"] { --cab: #ffb000; }
+.bandit[data-event="scatter"] { --cab: #b06bff; }
+@keyframes cab-pulse {
+  to { box-shadow: inset 0 0 0 2px var(--cab, #ffb000), 0 0 44px color-mix(in srgb, var(--cab, #ffb000) 60%, transparent), 0 26px 64px rgba(0, 0, 0, 0.65); }
+}
+
+/* marquee */
+.marquee {
+  position: relative;
+  padding: 0.5rem 1rem 0.6rem;
+  text-align: center;
+  background: linear-gradient(180deg, #1e0708, #320b0e);
+  border-bottom: 3px solid #000;
+}
+.marquee-title {
+  font-family: var(--font-display);
+  font-size: 2.1rem;
+  line-height: 1;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #ffd24a;
+  text-shadow: 0 0 12px rgba(255, 176, 0, 0.6), 0 2px 0 #6e0c10, 0 -1px 0 #000;
+}
+.marquee-sub {
+  font-family: var(--font-mono);
+  font-size: 0.52rem;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: #ff8585;
+}
+.bulb-strip {
+  height: 9px;
+  margin: 0 auto;
+  max-width: 90%;
+  background-image: radial-gradient(circle, #ffd24a 2.4px, transparent 3px);
+  background-size: 15px 9px;
+  background-position: center;
+  animation: bulbs 0.8s steps(2, end) infinite;
+}
+.bulb-strip.b { animation-delay: 0.4s; }
+@keyframes bulbs { 50% { filter: brightness(0.4); } }
+
+/* status strip under marquee */
+.bandit-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.3rem 0.8rem;
+  background: #050506;
+  border-bottom: 2px solid #000;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #7d7d86;
+}
+
+/* reels */
+.bandit-reels {
+  position: relative;
+  margin: 0.7rem;
+  padding: 0.5rem;
+  background: #050506;
+  border: 2px solid #000;
+  box-shadow: inset 0 0 34px rgba(0, 0, 0, 0.9), inset 0 0 0 1px #1a1b20;
+}
+.reels-row {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 0.4rem;
-  padding: 0.5rem;
-  background: #050507;
-  border: 2px solid var(--color-steel);
+  gap: 6px;
 }
-.slot-col { display: grid; grid-template-rows: repeat(3, 1fr); gap: 0.4rem; }
-.slot-cell {
+.reel {
+  position: relative;
+  display: grid;
+  grid-template-rows: repeat(3, 1fr);
+  gap: 6px;
+  background: #0a0a0c;
+}
+.reel::before, .reel::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 24%;
+  z-index: 3;
+  pointer-events: none;
+}
+.reel::before { top: 0; background: linear-gradient(180deg, rgba(0, 0, 0, 0.9), transparent); }
+.reel::after { bottom: 0; background: linear-gradient(0deg, rgba(0, 0, 0, 0.9), transparent); }
+.reel.spin { animation: buzz 0.09s linear infinite; }
+.reel.land { animation: land 0.26s cubic-bezier(0.2, 1.4, 0.4, 1); }
+@keyframes buzz { 50% { transform: translateY(-3px); } }
+@keyframes land { 0% { transform: translateY(-12px); } 60% { transform: translateY(4px); } 100% { transform: translateY(0); } }
+
+.symtile {
+  position: relative;
   display: grid;
   place-items: center;
   aspect-ratio: 1;
-  font-size: 2rem;
+  font-size: 2.1rem;
   line-height: 1;
-  background: #15151b;
-  border: 2px solid #26262e;
+  background: radial-gradient(circle at 50% 32%, #24252c, #101116 72%);
+  border: 1px solid #2b2d35;
 }
-.slot-col.spinning { animation: buzz 0.1s linear infinite; }
-@keyframes buzz { 50% { transform: translateY(-2px); } }
-.slot-cell.win {
-  border-color: var(--color-board);
-  background: rgba(255, 176, 0, 0.16);
-  box-shadow: 0 0 16px rgba(255, 176, 0, 0.5);
+.symtile.r-high { border-color: #5a4410; box-shadow: inset 0 0 14px rgba(255, 176, 0, 0.22); }
+.symtile.r-seven { border-color: #7a1717; box-shadow: inset 0 0 16px rgba(255, 59, 59, 0.35); }
+.symtile.r-wild { border-color: #caa11f; box-shadow: inset 0 0 18px rgba(255, 176, 0, 0.4); }
+.symtile.r-scatter { border-color: #6b3fa0; box-shadow: inset 0 0 18px rgba(176, 107, 255, 0.4); }
+.symtile.win { z-index: 2; animation: tile-win 0.55s ease infinite alternate; }
+@keyframes tile-win {
+  to { box-shadow: 0 0 0 2px #ffd24a, 0 0 20px rgba(255, 176, 0, 0.85); transform: scale(1.07); }
+}
+
+.reel-glass {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  background: linear-gradient(118deg, rgba(255, 255, 255, 0.12) 0%, transparent 28%, transparent 72%, rgba(255, 255, 255, 0.05) 100%);
+  mix-blend-mode: screen;
+}
+
+/* drawn paylines */
+.payline-svg { position: absolute; inset: 0; z-index: 5; pointer-events: none; overflow: visible; }
+.payline {
+  fill: none;
+  stroke-width: 5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 760;
+  stroke-dashoffset: 760;
+  animation: draw 0.45s ease forwards;
+  filter: drop-shadow(0 0 5px rgba(0, 0, 0, 0.7));
+}
+@keyframes draw { to { stroke-dashoffset: 0; } }
+
+/* spin button — big arcade plunger */
+.spin-btn {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #160d00;
+  background: radial-gradient(circle at 50% 32%, #ffe07a, #ff9e00 58%, #c46a00);
+  border: 3px solid #000;
+  box-shadow: 0 6px 0 #6e3d00, 0 0 26px rgba(255, 176, 0, 0.45);
+  transition: transform 0.08s, box-shadow 0.08s, filter 0.08s;
+}
+.spin-btn:hover:not(:disabled) { filter: brightness(1.08); }
+.spin-btn:active:not(:disabled) { transform: translateY(6px); box-shadow: 0 0 0 #6e3d00, 0 0 18px rgba(255, 176, 0, 0.4); }
+.spin-btn:disabled { filter: grayscale(0.65) brightness(0.65); box-shadow: 0 6px 0 #2a2a2f; cursor: not-allowed; }
+
+/* LED meters */
+.meter {
+  flex: 1;
+  background: #050507;
+  border: 2px solid #2b2b33;
+  padding: 0.2rem 0.5rem;
+  text-align: center;
+}
+.meter-label { font-family: var(--font-mono); font-size: 0.5rem; letter-spacing: 0.2em; text-transform: uppercase; color: #6e6e77; }
+.meter-val { font-family: var(--font-mono); font-weight: 700; color: #ffb000; text-shadow: 0 0 6px rgba(255, 176, 0, 0.5); }
+
+/* ----------------------------------------------------- big-win takeover */
+.bigwin-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  cursor: pointer;
+  background: radial-gradient(circle at 50% 42%, rgba(8, 8, 10, 0.5), rgba(0, 0, 0, 0.94) 72%);
+  animation: bw-in 0.18s ease-out;
+}
+@keyframes bw-in { from { opacity: 0; } to { opacity: 1; } }
+.bigwin-flash {
+  position: absolute;
+  inset: 0;
+  background: var(--ray, #ffb000);
+  animation: bw-flash 0.4s ease-out forwards;
+}
+@keyframes bw-flash { from { opacity: 0.5; } to { opacity: 0; } }
+.bigwin-rays {
+  position: absolute;
+  width: 150vmax;
+  height: 150vmax;
+  border-radius: 50%;
+  background: repeating-conic-gradient(from 0deg, var(--ray, #ffb000) 0deg 6deg, transparent 6deg 15deg);
+  opacity: 0.13;
+  will-change: transform;
+  transform: translateZ(0);
+  animation: bw-spin 18s linear infinite;
+}
+@keyframes bw-spin { to { transform: rotate(360deg); } }
+.bigwin-kicker { font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.45em; text-transform: uppercase; color: var(--color-ash); }
+.bigwin-title {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  line-height: 0.9;
+  font-size: clamp(3rem, 13vw, 7rem);
+  letter-spacing: 0.03em;
+  text-shadow: 0 0 34px currentColor, 0 4px 0 rgba(0, 0, 0, 0.55);
+  animation: bw-pop 0.5s cubic-bezier(0.2, 1.4, 0.3, 1) both;
+}
+@keyframes bw-pop { 0% { transform: scale(0.4) rotate(-5deg); opacity: 0; } 60% { transform: scale(1.1); } 100% { transform: scale(1); opacity: 1; } }
+.bigwin-amount { font-family: var(--font-mono); font-weight: 700; font-size: clamp(1.7rem, 7vw, 3rem); text-shadow: 0 0 18px currentColor; }
+.bigwin-hint { font-family: var(--font-mono); font-size: 0.62rem; letter-spacing: 0.3em; text-transform: uppercase; color: var(--color-ash); }
+@media (prefers-reduced-motion: reduce) {
+  .bigwin-rays { animation: none; }
+  .bigwin-flash { animation: none; opacity: 0; }
+  .bigwin-title { animation: none; }
 }
 
 /* ---------------------------------------------------------------- motion */

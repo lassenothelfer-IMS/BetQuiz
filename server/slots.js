@@ -13,12 +13,12 @@ const SCATTER = '💰';
 
 // Reel symbols with weights. WILD substitutes on lines; SCATTER pays by count.
 const SYMBOLS = [
-  { s: '🍒', w: 6 },
-  { s: '🍋', w: 6 },
-  { s: '🍉', w: 8 },
+  { s: '🍒', w: 8 },
+  { s: '🍋', w: 8 },
+  { s: '🍉', w: 9 },
   { s: '🔔', w: 10 },
   { s: '⭐', w: 11 },
-  { s: '💎', w: 23 },
+  { s: '💎', w: 21 },
   { s: '7️⃣', w: 13 },
   { s: WILD, w: 4 },
   { s: SCATTER, w: 14 },
