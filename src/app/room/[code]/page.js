@@ -202,6 +202,7 @@ export default function RoomPage() {
               questions={quiz}
               onAddPool={(id, ack) => socket.emit('quiz:addPool', { id }, ack)}
               onAddCustom={(payload, ack) => socket.emit('quiz:add', payload, ack)}
+              onQuickBuild={(count, category, ack) => socket.emit('quiz:random', { count, category }, ack)}
               onRemove={(index, ack) => socket.emit('quiz:remove', { index }, ack)}
               onStart={() => socket.emit('game:start')}
             />
@@ -276,6 +277,7 @@ export default function RoomPage() {
                 deadline={room.slotDeadline}
                 spinsDone={room.spinsDone}
                 activeCount={room.activeCount}
+                bailedOut={bailedOut}
                 onSpin={(wager, ack) => socket.emit('slot:spin', { wager }, ack)}
               />
             )}

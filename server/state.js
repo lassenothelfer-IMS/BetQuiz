@@ -5,7 +5,7 @@
 const { computeOdds } = require('./odds');
 const { scoreBets } = require('./scoring');
 const { computeSpin, SLOT_SECONDS, MAX_SPINS, MIN_WAGER } = require('./slots');
-const { getPoolQuestion } = require('./questionPool');
+const { pool, getPoolQuestion } = require('./questionPool');
 
 const STARTING_POINTS = 1000;
 const MAX_QUESTIONS = 20;
@@ -158,6 +158,34 @@ function removeQuestion(code, index) {
   return { room };
 }
 
+// Host quick-build: replace the card with `count` random questions, optionally
+// filtered to one category. Clamps to what's available.
+function buildRandomQuiz(code, count, category) {
+  const room = getRoom(code);
+  if (!room) return { error: 'Room not found' };
+  if (room.status !== 'build') return { error: 'Open the builder first' };
+
+  let n = Math.floor(Number(count));
+  if (!Number.isInteger(n) || n < 1) return { error: 'Pick how many questions' };
+  n = Math.min(n, MAX_QUESTIONS);
+
+  const source = category && category !== 'All' ? pool.filter((q) => q.category === category) : pool;
+  if (source.length === 0) return { error: 'No questions in that category' };
+
+  // Fisher–Yates shuffle a copy, take the first n.
+  const shuffled = source.slice();
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  room.questions = shuffled.slice(0, Math.min(n, shuffled.length)).map((q) => ({
+    text: q.text,
+    answers: q.answers.slice(),
+    correctAnswer: q.correctAnswer,
+  }));
+  return { room };
+}
+
 // Players (not the host) competing in the game.
 function activePlayers(room) {
   return [...room.players.values()].filter((p) => p.id !== room.hostId);
@@ -178,9 +206,9 @@ function everyoneSpun(room) {
   );
 }
 
-// Load the question at room.questionIndex into the live round and open betting.
-// Anyone who's gone broke gets a small bail-out so they can keep playing.
-function openBetting(room) {
+// Anyone who's gone broke gets a small bail-out so they can keep playing —
+// happens at the start of every betting round AND every slot break.
+function applyBailouts(room) {
   room.lastBailouts = [];
   for (const p of activePlayers(room)) {
     if (p.points < BAILOUT_THRESHOLD) {
@@ -188,6 +216,11 @@ function openBetting(room) {
       room.lastBailouts.push(p.id);
     }
   }
+}
+
+// Load the question at room.questionIndex into the live round and open betting.
+function openBetting(room) {
+  applyBailouts(room);
   room.currentQuestion = room.questions[room.questionIndex];
   room.round = room.questionIndex + 1;
   room.bets = [];
@@ -255,6 +288,7 @@ function revealAnswer(code) {
 }
 
 function enterSlots(room) {
+  applyBailouts(room); // broke players get +50 so they can spin too
   room.currentQuestion = null;
   room.bets = [];
   room.lastResults = null;
@@ -364,7 +398,7 @@ function serializeRoom(room) {
     odds: q ? computeOdds(q.answers.length, room.bets) : null,
     betCount: room.bets.length,
     betDeadline: room.status === 'betting' ? room.betDeadline : null,
-    bailouts: room.status === 'betting' ? room.lastBailouts : [],
+    bailouts: room.status === 'betting' || room.status === 'slots' ? room.lastBailouts : [],
     correctAnswer: revealed && q ? q.correctAnswer : null,
     results: revealed ? room.lastResults : null,
     revealDeadline: revealed ? room.revealDeadline : null,
@@ -395,6 +429,7 @@ module.exports = {
   openBuilder,
   addQuestion,
   addPoolQuestion,
+  buildRandomQuiz,
   removeQuestion,
   startGame,
   placeBet,

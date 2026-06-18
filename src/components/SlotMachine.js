@@ -55,7 +55,7 @@ function CountUp({ to }) {
   return <>{n.toLocaleString()}</>;
 }
 
-export default function SlotMachine({ points, deadline, spinsDone, activeCount, onSpin }) {
+export default function SlotMachine({ points, deadline, spinsDone, activeCount, bailedOut, onSpin }) {
   const [wager, setWager] = useState(50);
   const [spinsLeft, setSpinsLeft] = useState(MAX_SPINS);
   const [spinning, setSpinning] = useState(false);
@@ -150,6 +150,11 @@ export default function SlotMachine({ points, deadline, spinsDone, activeCount, 
 
   return (
     <div className="fade-in relative w-full max-w-md">
+      {bailedOut && (
+        <div className="mb-3 border-2 border-board/60 bg-board/10 px-4 py-2 text-center font-mono text-xs uppercase tracking-wide text-board">
+          ⛑ Short stack — staked you <b>+50</b> for the slots
+        </div>
+      )}
       <div className="bandit" data-event={celebrate ? result.event : undefined}>
         {/* Marquee */}
         <div className="marquee">

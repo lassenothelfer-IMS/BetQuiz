@@ -11,7 +11,8 @@ const remaining = (deadline) => Math.max(0, Math.ceil((deadline - Date.now()) / 
 export default function BettingPanel({ room, points, myBet, bailedOut, onPlaceBet }) {
   const { question, odds } = room;
   const [answer, setAnswer] = useState(null);
-  const [stake, setStake] = useState(null);
+  const [stake, setStake] = useState(null); // effective numeric stake
+  const [custom, setCustom] = useState(''); // raw text in the custom field
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(() => remaining(room.betDeadline));
@@ -129,21 +130,30 @@ export default function BettingPanel({ room, points, myBet, bailedOut, onPlaceBe
                   key={s}
                   type="button"
                   disabled={s > points}
-                  data-active={stake === s}
-                  onClick={() => setStake(s)}
+                  data-active={stake === s && custom === ''}
+                  onClick={() => {
+                    setStake(s);
+                    setCustom('');
+                  }}
                   className="stake h-12 flex-1 text-base"
                 >
                   {s}
                 </button>
               ))}
               <input
-                type="number"
-                min={1}
-                max={points}
-                value={stake !== null && !STAKES.includes(stake) ? stake : ''}
+                type="text"
+                inputMode="numeric"
+                value={custom}
                 onChange={(e) => {
-                  const v = parseInt(e.target.value, 10);
-                  setStake(Number.isFinite(v) ? Math.min(v, points) : null);
+                  const digits = e.target.value.replace(/[^\d]/g, '');
+                  if (digits === '') {
+                    setCustom('');
+                    setStake(null);
+                    return;
+                  }
+                  const v = Math.min(parseInt(digits, 10), points);
+                  setCustom(String(v));
+                  setStake(v);
                 }}
                 placeholder="ANY"
                 className="input-board h-12 w-20 px-2 text-center font-bold"

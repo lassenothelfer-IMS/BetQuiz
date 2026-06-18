@@ -10,6 +10,7 @@ const {
   addQuestion,
   addPoolQuestion,
   removeQuestion,
+  buildRandomQuiz,
   startGame,
   placeBet,
   revealAnswer,
@@ -156,6 +157,15 @@ function registerSocketHandlers(io) {
     socket.on('quiz:add', (payload, ack) => hostQuizMutation(addQuestion, payload, ack));
     socket.on('quiz:addPool', ({ id } = {}, ack) => hostQuizMutation(addPoolQuestion, id, ack));
     socket.on('quiz:remove', ({ index } = {}, ack) => hostQuizMutation(removeQuestion, index, ack));
+    socket.on('quiz:random', ({ count, category } = {}, ack) => {
+      const room = asHost(ack);
+      if (!room) return;
+      const res = buildRandomQuiz(room.code, count, category);
+      if (res.error) return ack?.({ error: res.error });
+      ack?.({ ok: true });
+      broadcastRoom(room.code);
+      sendHostQuiz(room);
+    });
 
     // ---- Running the game ----
     socket.on('game:start', (_p, ack) => {

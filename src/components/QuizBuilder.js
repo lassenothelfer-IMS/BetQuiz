@@ -7,8 +7,12 @@ import QuestionForm from './QuestionForm';
 // the pool, write your own, then call the show on.
 const CATEGORIES = ['All', ...Array.from(new Set(pool.map((q) => q.category)))];
 
-export default function QuizBuilder({ questions, onAddPool, onAddCustom, onRemove, onStart }) {
+const QB_COUNTS = [5, 10, 15, 20];
+
+export default function QuizBuilder({ questions, onAddPool, onAddCustom, onQuickBuild, onRemove, onStart }) {
   const [category, setCategory] = useState('All');
+  const [qbCount, setQbCount] = useState(10);
+  const [qbCat, setQbCat] = useState('All');
   const [error, setError] = useState('');
 
   const filtered = useMemo(
@@ -22,6 +26,56 @@ export default function QuizBuilder({ questions, onAddPool, onAddCustom, onRemov
       <div className="text-center">
         <p className="font-mono text-xs uppercase tracking-[0.4em] text-board">Build the card</p>
         <h1 className="headline mt-2 text-4xl">Tonight&apos;s Rundown</h1>
+      </div>
+
+      {/* Quick build — deal a random card */}
+      <div className="board">
+        <div className="board-hd">
+          <span>⚡ Quick Build</span>
+          <span className="font-mono text-ash">random card</span>
+        </div>
+        <div className="space-y-3 p-4">
+          <div>
+            <p className="mb-1.5 font-mono text-[0.6rem] uppercase tracking-[0.2em] text-ash">How many</p>
+            <div className="flex gap-2">
+              {QB_COUNTS.map((n) => (
+                <button
+                  key={n}
+                  onClick={() => setQbCount(n)}
+                  className={`stake h-10 flex-1 text-sm`}
+                  data-active={qbCount === n}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="mb-1.5 font-mono text-[0.6rem] uppercase tracking-[0.2em] text-ash">Genre</p>
+            <div className="flex flex-wrap gap-2">
+              {CATEGORIES.map((c) => (
+                <button
+                  key={c}
+                  onClick={() => setQbCat(c)}
+                  className={`border-2 px-2.5 py-1 font-mono text-[0.6rem] uppercase tracking-widest ${
+                    qbCat === c ? 'border-board bg-board text-ink' : 'border-steel text-ash hover:border-board'
+                  }`}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+          </div>
+          <button
+            onClick={() => onQuickBuild(qbCount, qbCat, ack)}
+            className="btn-slam w-full px-4 py-3"
+          >
+            ⚡ Deal {qbCount} {qbCat === 'All' ? 'random' : qbCat} ▸
+          </button>
+          <p className="text-center font-mono text-[0.58rem] uppercase tracking-[0.18em] text-ash">
+            Replaces the card with a fresh random set
+          </p>
+        </div>
       </div>
 
       {/* The card + go-live */}
